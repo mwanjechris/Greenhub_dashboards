@@ -86,7 +86,7 @@
                 <td class="r" t-esc="fmtMoney(l.actual)"/><td class="r" t-esc="fmtMoney(l.budget)"/>
                 <td class="r" t-esc="l.variance.abs !== null ? fmtMoney(l.variance.abs) : '—'"/>
                 <td class="r" t-esc="l.variance.pct !== null ? l.variance.pct + '%' : 'n/a'"/>
-                <td><span t-att-class="'st ' + variancePill(l.variance).cls" t-esc="variancePill(l.variance).text"/></td>
+                <td><span t-att-class="'st ' + variancePill(l.variance, l.budget, l.actual).cls" t-esc="variancePill(l.variance, l.budget, l.actual).text"/></td>
               </tr>
             </t>
           </tbody>
@@ -128,7 +128,7 @@
               <t t-foreach="d.operational.rows" t-as="r" t-key="r_index">
                 <tr><td><span class="muted" t-esc="r.code"/> <t t-esc="r.label"/><t t-if="r.note"> <span class="muted" t-esc="r.note"/></t></td><td><span class="muted" t-esc="r.basis"/></td>
                   <td class="r" t-esc="fmtVal(r.actual, r.unit)"/><td class="r" t-esc="fmtVal(r.plan, r.unit)"/>
-                  <td><span t-att-class="'st ' + variancePill(r.variance).cls" t-esc="variancePill(r.variance).text"/></td></tr>
+                  <td><span t-att-class="'st ' + variancePill(r.variance, r.plan, r.actual).cls" t-esc="variancePill(r.variance, r.plan, r.actual).text"/></td></tr>
               </t>
             </tbody>
           </table>

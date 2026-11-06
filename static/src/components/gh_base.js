@@ -106,8 +106,11 @@ export class GhDashboardBase extends Component {
             : d.toLocaleDateString("en-GB", { day: "numeric", month: "short" });
     }
 
-    variancePill(v) {
+    variancePill(v, budget, actual) {
         if (!v || v.favourable === null || v.favourable === undefined) {
+            if (budget !== null && budget !== undefined && (actual === null || actual === undefined)) {
+                return { cls: "neu", text: "no actuals" };
+            }
             return { cls: "neu", text: "no plan" };
         }
         const pct = v.pct === null || v.pct === undefined ? "n/a" : `${Math.abs(v.pct).toFixed(1)}%`;

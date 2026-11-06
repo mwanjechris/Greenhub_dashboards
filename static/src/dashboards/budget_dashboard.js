@@ -31,7 +31,7 @@ export class BudgetDashboard extends GhDashboardBase {
 
     tile(code, label, t, unit = "money") {
         const v = t.var || {};
-        return { code, label, actual: t.actual, budget: t.budget, v, pill: this.variancePill(v), unit };
+        return { code, label, actual: t.actual, budget: t.budget, v, pill: this.variancePill(v, t.budget, t.actual), unit };
     }
 
     get finTiles() {
@@ -49,7 +49,7 @@ export class BudgetDashboard extends GhDashboardBase {
         const out = [];
         for (const r of [pick("B07")[0], pick("B08")[0], { code: "B09", label: "Fleet deployed", actual: fleet.actual, plan: fleet.plan, direction: "up", unit: "count" }, pick("B10")[0]]) {
             const v = r.variance || this.localVariance(r.actual, r.plan, r.direction);
-            out.push({ code: r.code, label: r.label, actual: r.actual, budget: r.plan, v, pill: this.variancePill(v), unit: r.unit, note: r.note });
+            out.push({ code: r.code, label: r.label, actual: r.actual, budget: r.plan, v, pill: this.variancePill(v, r.plan, r.actual), unit: r.unit, note: r.note });
         }
         return out;
     }
