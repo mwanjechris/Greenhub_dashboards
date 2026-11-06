@@ -1,0 +1,121 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="gh_dashboard_config_form" model="ir.ui.view">
+        <field name="name">gh.dashboard.config.form</field>
+        <field name="model">gh.dashboard.config</field>
+        <field name="arch" type="xml">
+            <form string="Dashboard settings">
+                <sheet>
+                    <group>
+                        <group string="History">
+                            <field name="company_id" readonly="1"/>
+                            <field name="history_start"/>
+                        </group>
+                        <group string="Riders &amp; Customers">
+                            <field name="youth_age_limit"/>
+                            <field name="licence_notice_days"/>
+                            <field name="accident_window_days"/>
+                            <field name="referral_window_weeks"/>
+                            <field name="exclude_test_vehicles"/>
+                        </group>
+                    </group>
+                </sheet>
+            </form>
+        </field>
+    </record>
+    <record id="gh_dashboard_config_list" model="ir.ui.view">
+        <field name="name">gh.dashboard.config.list</field>
+        <field name="model">gh.dashboard.config</field>
+        <field name="arch" type="xml">
+            <list>
+                <field name="company_id"/>
+                <field name="history_start"/>
+                <field name="youth_age_limit"/>
+                <field name="licence_notice_days"/>
+            </list>
+        </field>
+    </record>
+    <record id="action_gh_dashboard_config" model="ir.actions.act_window">
+        <field name="name">Dashboard settings</field>
+        <field name="res_model">gh.dashboard.config</field>
+        <field name="view_mode">list,form</field>
+    </record>
+
+    <record id="gh_product_group_list" model="ir.ui.view">
+        <field name="name">gh.product.group.list</field>
+        <field name="model">gh.product.group</field>
+        <field name="arch" type="xml">
+            <list>
+                <field name="sequence" widget="handle"/>
+                <field name="name"/>
+                <field name="color_slot"/>
+                <field name="product_ids" widget="many2many_tags"/>
+                <field name="vehicle_model_ids" widget="many2many_tags"/>
+                <field name="active" column_invisible="True"/>
+            </list>
+        </field>
+    </record>
+    <record id="gh_product_group_form" model="ir.ui.view">
+        <field name="name">gh.product.group.form</field>
+        <field name="model">gh.product.group</field>
+        <field name="arch" type="xml">
+            <form>
+                <sheet>
+                    <group>
+                        <group>
+                            <field name="name"/>
+                            <field name="color_slot"/>
+                            <field name="sequence"/>
+                            <field name="active"/>
+                        </group>
+                    </group>
+                    <group string="Contract products">
+                        <field name="product_ids" widget="many2many_tags" nolabel="1" colspan="2"/>
+                    </group>
+                    <group string="Vehicle models">
+                        <field name="vehicle_model_ids" widget="many2many_tags" nolabel="1" colspan="2"/>
+                    </group>
+                </sheet>
+            </form>
+        </field>
+    </record>
+    <record id="action_gh_product_group" model="ir.actions.act_window">
+        <field name="name">Product groups</field>
+        <field name="res_model">gh.product.group</field>
+        <field name="view_mode">list,form</field>
+    </record>
+
+    <record id="gh_vehicle_category_rule_list" model="ir.ui.view">
+        <field name="name">gh.vehicle.category.rule.list</field>
+        <field name="model">gh.vehicle.category.rule</field>
+        <field name="arch" type="xml">
+            <list editable="bottom">
+                <field name="sequence" widget="handle"/>
+                <field name="name"/>
+                <field name="category"/>
+                <field name="vehicle_states"/>
+                <field name="tag_ids" widget="many2many_tags"/>
+                <field name="on_active_contract"/>
+                <field name="ongoing_loaner"/>
+                <field name="active" column_invisible="True"/>
+            </list>
+        </field>
+    </record>
+    <record id="action_gh_vehicle_category_rule" model="ir.actions.act_window">
+        <field name="name">Vehicle category rules</field>
+        <field name="res_model">gh.vehicle.category.rule</field>
+        <field name="view_mode">list</field>
+        <field name="help" type="html">
+            <p>Rules are tried in order; the first match decides a vehicle's category.</p>
+        </field>
+    </record>
+    <record id="action_gh_suggest_tag_rules" model="ir.actions.server">
+        <field name="name">Suggest tag rules from tags in use</field>
+        <field name="model_id" ref="model_gh_vehicle_category_rule"/>
+        <field name="binding_model_id" ref="model_gh_vehicle_category_rule"/>
+        <field name="binding_view_types">list</field>
+        <field name="group_ids" eval="[(4, ref('group_gh_dashboard_manager'))]"/>
+        <field name="state">code</field>
+        <field name="code">model.action_suggest_tag_rules()</field>
+    </record>
+</odoo>

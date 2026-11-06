@@ -1,0 +1,293 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<templates xml:space="preserve">
+<t t-name="greenhub_dashboards.RidersDashboard">
+<div class="gh">
+  <t t-if="state.loading and !state.data"><div class="gh-loading">Loading…</div></t>
+  <t t-elif="state.loadError">
+    <div class="gh-fatal">
+      <h3>Riders &amp; Customers failed to load</h3>
+      <p t-esc="state.loadError"/>
+      <button t-on-click="() => this.load()">Retry</button>
+    </div>
+  </t>
+  <t t-else="">
+  <div t-att-class="state.showCodes ? 'show-codes' : ''">
+    <!-- header -->
+    <div class="gh-header">
+      <div class="gh-hl">
+        <div class="gh-eyebrow"><t t-esc="d.company"/> · Green Hub</div>
+        <h1 class="gh-title">Riders &amp; Customers</h1>
+        <div class="gh-meta">
+          <span class="gh-pill"><span class="gh-dot"/>Live status · trends from weekly snapshots</span>
+          <span class="gh-meta-t">Read at <t t-esc="readAt"/> ·
+            <t t-if="d.last_snapshot">last snapshot <t t-esc="fmtDate(d.last_snapshot)"/></t>
+            <t t-else="">no snapshots yet</t>
+          </span>
+        </div>
+      </div>
+      <div class="gh-hr" t-if="ok('core')">
+        <div class="gh-logo">GREENHUB<small>DRIVING PROGRESS</small></div>
+        <div class="gh-hero-l">Active riders</div>
+        <div class="gh-hero-n" t-esc="fmtInt(d.core.active_riders.value)"/>
+        <div class="gh-hero-c">Distinct riders on a Running or Paused contract today.</div>
+      </div>
+    </div>
+
+    <!-- filters -->
+    <div class="gh-filters">
+      <div class="gh-f">As of <span class="gh-date" t-esc="fmtDate(d.as_of)"/></div>
+      <div class="gh-f">Trend
+        <span class="gh-seg">
+          <button t-att-class="state.grain === 'week' ? 'on' : ''" t-on-click="() => this.setGrain('week')">Week</button>
+          <button t-att-class="state.grain === 'month' ? 'on' : ''" t-on-click="() => this.setGrain('month')">Month</button>
+        </span>
+      </div>
+      <div class="gh-f">Product
+        <span class="gh-seg">
+          <button t-att-class="!state.productGroupId ? 'on' : ''" t-on-click="() => this.setProduct(false)">All</button>
+          <t t-foreach="d.product_groups" t-as="g" t-key="g.id">
+            <button t-att-class="state.productGroupId === g.id ? 'on' : ''" t-on-click="() => this.setProduct(g.id)" t-esc="g.name"/>
+          </t>
+        </span>
+      </div>
+      <div class="gh-checks">
+        <button t-on-click="() => { this.state.showChecks = !this.state.showChecks; }">
+          <t t-if="checksFailed.length"><span class="bad">⚠</span> <t t-esc="checksFailed.length"/> of <t t-esc="d.checks.length"/> reconciliation checks fail</t>
+          <t t-else=""><span class="ok">✓</span> <t t-esc="d.checks.length"/> of <t t-esc="d.checks.length"/> reconciliation checks pass</t>
+        </button>
+        <button class="gh-codes-toggle" t-on-click="() => { this.state.showCodes = !this.state.showCodes; }">
+          <t t-if="state.showCodes">Hide</t><t t-else="">Show</t> KPI codes
+        </button>
+      </div>
+    </div>
+    <div class="gh-check-list" t-if="state.showChecks">
+      <t t-foreach="d.checks" t-as="c" t-key="c.code">
+        <div><t t-if="c.ok">✓</t><t t-else="">⚠</t> <b t-esc="c.code"/> · <t t-esc="c.message"/></div>
+      </t>
+    </div>
+
+    <div class="gh-body">
+      <!-- riders at a glance -->
+      <div>
+        <h2 class="gh-h2">Riders at a glance</h2>
+        <div class="gh-panel-error" t-if="!ok('core')">Rider KPIs failed: <t t-esc="d.core.error"/></div>
+        <div class="gh-score" t-else="">
+          <div class="gh-cl" style="flex:4 1 0">
+            <div class="gh-cl-l">Riders</div>
+            <div class="gh-tiles" style="grid-template-columns:repeat(4,minmax(0,1fr))">
+              <button class="gh-tile" t-on-click="() => this.open('rider', d.core.active_riders.domain, 'Active riders')">
+                <span class="kc">R01</span>
+                <div class="gh-tile-l">Active riders</div>
+                <div class="gh-tile-n" t-esc="fmtInt(d.core.active_riders.value)"/>
+                <div class="gh-tile-q">Running <t t-esc="d.core.active_riders.running"/> · Paused <t t-esc="d.core.active_riders.paused"/></div>
+                <svg t-if="r01Spark" class="gh-spark" viewBox="0 0 100 22" preserveAspectRatio="none">
+                  <polyline t-att-points="r01Spark" fill="none" stroke="var(--gh-slate)" stroke-width="2" vector-effect="non-scaling-stroke"/>
+                </svg>
+              </button>
+              <button class="gh-tile" t-on-click="() => this.open('rider', d.core.women.domain, 'Women riders')">
+                <span class="kc">R02</span>
+                <div class="gh-tile-l">Women</div>
+                <div class="gh-tile-n" t-esc="fmtInt(d.core.women.value)"/>
+                <div class="gh-tile-q"><b t-esc="fmtPct(d.core.women.pct)"/> of <t t-esc="d.core.active_riders.value"/> active riders</div>
+              </button>
+              <button class="gh-tile" t-on-click="() => this.open('rider', d.core.men.domain, 'Men riders')">
+                <span class="kc">R03</span>
+                <div class="gh-tile-l">Men</div>
+                <div class="gh-tile-n" t-esc="fmtInt(d.core.men.value)"/>
+                <div class="gh-tile-q"><b t-esc="fmtPct(d.core.men.pct)"/> of <t t-esc="d.core.active_riders.value"/> active riders</div>
+              </button>
+              <button class="gh-tile" t-on-click="() => this.open('rider', d.core.youth.domain, 'Youth riders')">
+                <span class="kc">R04</span>
+                <div class="gh-tile-l">Youth (&lt; <t t-esc="d.core.youth.limit"/>)</div>
+                <div class="gh-tile-n" t-esc="fmtInt(d.core.youth.value)"/>
+                <div class="gh-tile-q"><b t-esc="fmtPct(d.core.youth.pct)"/> · age from date of birth<t t-if="d.core.youth.no_dob"> · <t t-esc="d.core.youth.no_dob"/> without one</t></div>
+              </button>
+            </div>
+          </div>
+          <div class="gh-cl" style="flex:2 1 0" t-if="ok('fleet')">
+            <div class="gh-cl-l">Fleet</div>
+            <div class="gh-tiles" style="grid-template-columns:repeat(2,minmax(0,1fr))">
+              <button class="gh-tile" t-on-click="() => this.open('fleet.vehicle', d.fleet.unassigned.domain, 'Unassigned e-bodas')">
+                <span class="kc">R06</span>
+                <div class="gh-tile-l">Unassigned e-bodas</div>
+                <div class="gh-tile-n warn" t-esc="fmtInt(d.fleet.unassigned.value)"/>
+                <div class="gh-tile-q"><b t-esc="fmtPct(d.fleet.unassigned.pct)"/> of <t t-esc="d.fleet.fleet_total"/> fleet · <t t-esc="d.fleet.unassigned.new"/> new, <t t-esc="d.fleet.unassigned.refinancing"/> re-financing</div>
+              </button>
+              <button class="gh-tile" t-on-click="() => this.open('fleet.vehicle', d.fleet.on_contract.domain, 'Vehicles on contract')">
+                <span class="kc">R07</span>
+                <div class="gh-tile-l">On contract</div>
+                <div class="gh-tile-n" t-esc="fmtInt(d.fleet.on_contract.value)"/>
+                <div class="gh-tile-q"><b t-esc="fmtPct(d.fleet.on_contract.pct)"/> of <t t-esc="d.fleet.fleet_total"/> fleet<t t-if="d.fleet.test_excluded"> (excl. <t t-esc="d.fleet.test_excluded"/> test bikes)</t></div>
+              </button>
+            </div>
+          </div>
+          <div class="gh-cl" style="flex:2 1 0" t-if="ok('safety')">
+            <div class="gh-cl-l">Compliance &amp; safety</div>
+            <div class="gh-tiles" style="grid-template-columns:repeat(2,minmax(0,1fr))">
+              <button class="gh-tile" t-on-click="() => this.open('rider', licenceCount('expiring').domain, 'Licences expiring soon')">
+                <span class="kc">R18</span>
+                <div class="gh-tile-l">Licence expiring ≤ <t t-esc="d.safety.licences.notice_days"/> d</div>
+                <div class="gh-tile-n warn" t-esc="fmtInt(licenceCount('expiring').count)"/>
+                <div class="gh-tile-q"><t t-esc="licenceCount('expired').count"/> expired · <t t-esc="licenceCount('none').count + licenceCount('unknown').count"/> none or no end date</div>
+              </button>
+              <button class="gh-tile" t-on-click="() => this.open('fleet.vehicle.accident', d.safety.accidents.domain, 'Accidents')">
+                <span class="kc">R17</span>
+                <div class="gh-tile-l">Accidents (<t t-esc="d.safety.accidents.days"/> days)</div>
+                <div t-att-class="'gh-tile-n' + (d.safety.accidents.value ? ' crit' : '')" t-esc="fmtInt(d.safety.accidents.value)"/>
+                <div class="gh-tile-q"><t t-if="d.safety.accidents.per_100 !== null"><t t-esc="d.safety.accidents.per_100"/> per 100 bikes on contract</t></div>
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- gender/age, product, referral -->
+      <div class="gh-row" style="grid-template-columns:minmax(0,1.1fr) minmax(0,1fr) minmax(0,1fr)" t-if="ok('core')">
+        <div class="gh-panel"><span class="kc">R05</span>
+          <div class="gh-ptitle"><h3 class="gh-h3">Gender and age</h3></div>
+          <div class="gh-pcap">Active riders · age at the as-of date</div>
+          <table class="t">
+            <thead><tr><th>Group</th><th class="r">Riders</th><th class="r">Share</th></tr></thead>
+            <tbody>
+              <t t-foreach="d.core.gender_age" t-as="row" t-key="row.key">
+                <tr t-on-click="() => this.open('rider', row.domain, row.label)">
+                  <td t-esc="row.label"/><td class="r" t-esc="fmtInt(row.count)"/><td class="r" t-esc="fmtPct(row.pct)"/>
+                </tr>
+              </t>
+            </tbody>
+          </table>
+          <t t-set="c05" t-value="d.checks.find((c) => c.code === 'R05')"/>
+          <div t-if="c05" t-att-class="'chk' + (c05.ok ? '' : ' bad')"><t t-if="c05.ok">✓</t><t t-else="">⚠</t> <t t-esc="c05.message"/></div>
+        </div>
+        <div class="gh-panel"><span class="kc">R08</span>
+          <div class="gh-ptitle"><h3 class="gh-h3">Active riders by product</h3></div>
+          <div class="gh-pcap">Count and share of <t t-esc="d.core.active_riders.value"/> active riders</div>
+          <table class="t">
+            <thead><tr><th>Product</th><th class="r">Riders</th><th class="r">Share</th></tr></thead>
+            <tbody>
+              <t t-foreach="d.core.by_product" t-as="row" t-key="row_index">
+                <tr t-on-click="() => this.open('rider.contract', row.domain, row.label)">
+                  <td><i class="sw" t-att-style="'background:' + slotColor(row.slot)"/><t t-esc="row.label"/><t t-if="row.warn"> ⚠</t></td>
+                  <td class="r" t-esc="fmtInt(row.count)"/><td class="r" t-esc="fmtPct(row.pct)"/>
+                </tr>
+              </t>
+            </tbody>
+          </table>
+          <t t-set="c08" t-value="d.checks.find((c) => c.code === 'R08')"/>
+          <div t-if="c08" t-att-class="'chk' + (c08.ok ? '' : ' bad')"><t t-if="c08.ok">✓</t><t t-else="">⚠</t> <t t-esc="c08.message"/></div>
+        </div>
+        <div class="gh-panel"><span class="kc">R14</span>
+          <div class="gh-ptitle"><h3 class="gh-h3">Referral sources</h3></div>
+          <t t-if="ok('referrals')">
+            <div class="gh-pcap">Contracts started · last <t t-esc="d.referrals.weeks"/> weeks (n = <t t-esc="d.referrals.total"/>)</div>
+            <table class="t">
+              <thead><tr><th>Source</th><th class="r">Contracts</th><th class="r">Share</th></tr></thead>
+              <tbody>
+                <t t-foreach="d.referrals.rows" t-as="row" t-key="row_index">
+                  <tr t-on-click="() => this.open('rider.contract', row.domain, row.label)">
+                    <td t-esc="row.label"/><td class="r" t-esc="fmtInt(row.count)"/><td class="r" t-esc="fmtPct(row.pct)"/>
+                  </tr>
+                </t>
+              </tbody>
+            </table>
+          </t>
+          <div class="gh-panel-error" t-else="">Referrals failed: <t t-esc="d.referrals.error"/></div>
+        </div>
+      </div>
+
+      <!-- vehicle distribution -->
+      <div class="gh-panel scrollx" t-if="ok('fleet')"><span class="kc">R07 · R09</span>
+        <div class="gh-ptitle"><h3 class="gh-h3">Vehicle distribution</h3>
+          <span style="font-size:12px;color:var(--gh-ink-soft)">Each vehicle counted once · denominator = <t t-esc="d.fleet.fleet_total"/> vehicles<t t-if="d.fleet.test_excluded">, test bikes excluded</t></span></div>
+        <div class="gh-pcap">Click any cell to open the vehicles</div>
+        <div class="empty" t-if="!d.fleet.has_rules"><b>No vehicle category rules yet</b>Add them under Configuration › Vehicle category rules.</div>
+        <table class="t" t-else="">
+          <thead><tr><th>Product group</th>
+            <t t-foreach="d.fleet.matrix.columns" t-as="col" t-key="col.category"><th class="r" t-esc="col.label"/></t>
+            <th class="r">Total</th></tr></thead>
+          <tbody>
+            <t t-foreach="d.fleet.matrix.rows" t-as="row" t-key="row_index">
+              <tr>
+                <td><i class="sw" t-att-style="'background:' + slotColor(row.slot)"/><t t-esc="row.label"/><t t-if="row.warn"> ⚠</t></td>
+                <t t-foreach="row.cells" t-as="cell" t-key="cell.category">
+                  <td class="r" t-on-click="() => this.open('fleet.vehicle', cell.domain, row.label)" t-esc="cell.count || '·'"/>
+                </t>
+                <td class="r"><b t-esc="row.total"/></td>
+              </tr>
+            </t>
+            <tr class="total"><td>Fleet</td>
+              <t t-foreach="d.fleet.matrix.columns" t-as="col" t-key="col.category">
+                <td class="r"><t t-esc="col.count"/><div class="muted" t-esc="fmtPct(col.pct)"/></td>
+              </t>
+              <td class="r" t-esc="d.fleet.fleet_total"/></tr>
+          </tbody>
+        </table>
+        <t t-set="c07" t-value="d.checks.find((c) => c.code === 'R07')"/>
+        <div t-if="c07" t-att-class="'chk' + (c07.ok ? '' : ' bad')"><t t-if="c07.ok">✓</t><t t-else="">⚠</t> <t t-esc="c07.message"/></div>
+        <t t-if="d.fleet.available_by_model.length">
+          <h3 class="gh-h3" style="margin-top:18px">Available by model</h3>
+          <table class="t" style="margin-top:8px">
+            <thead><tr><th>Model</th><th class="r">Available</th><th class="r">Share of fleet</th></tr></thead>
+            <tbody>
+              <t t-foreach="d.fleet.available_by_model" t-as="row" t-key="row_index">
+                <tr t-on-click="() => this.open('fleet.vehicle', row.domain, row.label)">
+                  <td t-esc="row.label"/><td class="r" t-esc="row.count"/><td class="r" t-esc="fmtPct(row.pct)"/>
+                </tr>
+              </t>
+            </tbody>
+          </table>
+        </t>
+      </div>
+
+      <!-- history-driven panels -->
+      <div class="gh-row" style="grid-template-columns:minmax(0,1fr) minmax(0,2fr)">
+        <div class="gh-panel"><span class="kc">R10–R12</span>
+          <h3 class="gh-h3">Retention</h3>
+          <div class="gh-pcap">Opening-cohort method · new riders excluded from the cohort</div>
+          <div class="empty"><b>Awaiting weekly history</b>Retention needs rider status at each week end. It fills in once the history backfill has run.</div>
+        </div>
+        <div class="gh-panel"><span class="kc">R13</span>
+          <h3 class="gh-h3">Customer growth</h3>
+          <div class="gh-pcap">Opening + first-time + returning − exits = closing (checked every period)</div>
+          <div class="empty"><b>Awaiting weekly history</b>Growth needs opening and closing rider counts per period from the snapshot store.</div>
+        </div>
+      </div>
+      <div class="gh-row" style="grid-template-columns:minmax(0,1fr) minmax(0,1fr)">
+        <div class="gh-panel"><span class="kc">R15</span>
+          <h3 class="gh-h3">Gender and age over time</h3>
+          <div class="gh-pcap">Share of active riders at each period end · age at that date</div>
+          <div class="empty" t-if="!hasHistory"><b>Awaiting weekly history</b>Fills in from snapshots; at least two periods are needed.</div>
+        </div>
+        <div class="gh-panel"><span class="kc">R16</span>
+          <h3 class="gh-h3">Unassigned e-bodas over time</h3>
+          <div class="gh-pcap">Available vehicles at each period end · from vehicle-state snapshots</div>
+          <div class="empty" t-if="!hasHistory"><b>Awaiting weekly history</b>Fills in from snapshots; at least two periods are needed.</div>
+        </div>
+      </div>
+
+      <!-- licences expiring -->
+      <div class="gh-panel" t-if="ok('safety')"><span class="kc">R18</span>
+        <div class="gh-ptitle"><h3 class="gh-h3">Licences expiring in the next <t t-esc="d.safety.licences.notice_days"/> days</h3>
+          <a t-if="d.safety.licences.expiring.length" href="#" style="font:500 12px var(--gh-sans);color:var(--gh-blue-step)"
+             t-on-click.prevent="() => this.open('rider', licenceCount('expiring').domain, 'Licences expiring soon')">Open all <t t-esc="d.safety.licences.expiring.length"/> →</a></div>
+        <div class="gh-pcap">Learner's permits are not recorded in Odoo yet, so they are counted as valid or as no licence.</div>
+        <div class="empty" t-if="!d.safety.licences.expiring.length"><b>No licences expire in this window</b></div>
+        <table class="t" t-else="">
+          <thead><tr><th>Rider</th><th>Product</th><th class="r">Expires</th><th class="r">Days left</th></tr></thead>
+          <tbody>
+            <t t-foreach="d.safety.licences.expiring" t-as="row" t-key="row.rider_id">
+              <tr t-on-click="() => this.openRider(row.rider_id)">
+                <td t-esc="row.name"/><td t-esc="row.product"/><td class="r" t-esc="fmtDate(row.end)"/>
+                <td class="r"><span t-att-class="'st ' + (row.days_left &lt;= 7 ? 'unf' : row.days_left &lt;= 15 ? 'wrn' : 'neu')">
+                  <t t-if="row.days_left &lt;= 7">▲ </t><t t-elif="row.days_left &lt;= 15">● </t><t t-esc="row.days_left"/></span></td>
+              </tr>
+            </t>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+  </t>
+</div>
+</t>
+</templates>

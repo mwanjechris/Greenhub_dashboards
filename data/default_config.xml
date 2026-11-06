@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Seed configuration only. Green Hub reviews and edits all of it under
+         Green Hub Dashboards > Configuration; noupdate keeps their edits. -->
+    <data noupdate="1">
+        <record id="gh_config_main" model="gh.dashboard.config">
+            <field name="company_id" ref="base.main_company"/>
+        </record>
+
+        <record id="gh_group_zembo" model="gh.product.group">
+            <field name="name">Zembo</field><field name="sequence">10</field><field name="color_slot">zembo</field>
+        </record>
+        <record id="gh_group_iqube" model="gh.product.group">
+            <field name="name">iQube</field><field name="sequence">20</field><field name="color_slot">iqube</field>
+        </record>
+        <record id="gh_group_niu" model="gh.product.group">
+            <field name="name">NIU</field><field name="sequence">30</field><field name="color_slot">niu</field>
+        </record>
+
+        <!-- First match wins. A running/paused contract decides "on contract"
+             before any tag, so a stale tag can't hide a bike that is out with a rider. -->
+        <record id="gh_rule_on_contract" model="gh.vehicle.category.rule">
+            <field name="name">On a running or paused contract</field><field name="sequence">1</field>
+            <field name="category">on_contract</field><field name="on_active_contract" eval="True"/>
+        </record>
+        <record id="gh_rule_loaner" model="gh.vehicle.category.rule">
+            <field name="name">Out as loaner</field><field name="sequence">60</field>
+            <field name="category">loaner</field><field name="ongoing_loaner" eval="True"/>
+        </record>
+        <record id="gh_rule_sold_state" model="gh.vehicle.category.rule">
+            <field name="name">Sold (vehicle state)</field><field name="sequence">31</field>
+            <field name="category">outright_sold</field><field name="vehicle_states">sold</field>
+        </record>
+        <record id="gh_rule_write_off" model="gh.vehicle.category.rule">
+            <field name="name">Written off (vehicle state)</field><field name="sequence">22</field>
+            <field name="category">decommissioned</field><field name="vehicle_states">write-off</field>
+        </record>
+        <record id="gh_rule_in_repair" model="gh.vehicle.category.rule">
+            <field name="name">In repair or service</field><field name="sequence">70</field>
+            <field name="category">in_repair</field><field name="vehicle_states">in_repair,in_progress</field>
+        </record>
+        <record id="gh_rule_available" model="gh.vehicle.category.rule">
+            <field name="name">Available</field><field name="sequence">80</field>
+            <field name="category">available</field><field name="vehicle_states">available,released</field>
+        </record>
+        <record id="gh_rule_on_loan_state" model="gh.vehicle.category.rule">
+            <field name="name">On loan (vehicle state)</field><field name="sequence">61</field>
+            <field name="category">loaner</field><field name="vehicle_states">on_loan</field>
+        </record>
+        <record id="gh_rule_inhouse_state" model="gh.vehicle.category.rule">
+            <field name="name">In-house (vehicle state)</field><field name="sequence">51</field>
+            <field name="category">in_house</field><field name="vehicle_states">inhouse</field>
+        </record>
+        <record id="gh_rule_pending" model="gh.vehicle.category.rule">
+            <field name="name">Not yet in service</field><field name="sequence">90</field>
+            <field name="category">pending</field>
+            <field name="vehicle_states">draft,inspection,not_available,reserved</field>
+        </record>
+    </data>
+</odoo>

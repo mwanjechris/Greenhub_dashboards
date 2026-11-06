@@ -1,0 +1,33 @@
+{
+    "name": "Green Hub Dashboards",
+    "summary": "Server-computed KPIs, weekly history and OWL dashboards for Green Hub",
+    "author": "Tech Things",
+    "website": "https://www.techthings.it",
+    "category": "Productivity",
+    "version": "19.0.0.1.0",
+    "license": "LGPL-3",
+    "depends": ["greenhub", "fleet", "account", "mail"],
+    # Explicit installs only: the Green Hub server is shared by several tenants.
+    "auto_install": False,
+    "data": [
+        "security/security.xml",
+        "security/ir.model.access.csv",
+        "data/default_config.xml",
+        "data/cron.xml",
+        "views/config_views.xml",
+        "views/snapshot_views.xml",
+        "views/dashboard_actions.xml",
+        "views/menus.xml",
+    ],
+    "assets": {
+        "web.assets_backend": [
+            "greenhub_dashboards/static/src/dashboards/gh_fonts.css",
+            "greenhub_dashboards/static/src/dashboards/gh_dashboard.css",
+            "greenhub_dashboards/static/src/components/*.js",
+            "greenhub_dashboards/static/src/components/*.xml",
+            "greenhub_dashboards/static/src/dashboards/*.js",
+            "greenhub_dashboards/static/src/dashboards/*.xml",
+        ],
+    },
+    "application": True,
+}

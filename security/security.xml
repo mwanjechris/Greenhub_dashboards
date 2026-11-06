@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record model="res.groups.privilege" id="privilege_gh_dashboards">
+        <field name="name">Green Hub Dashboards</field>
+        <field name="sequence">40</field>
+        <field name="category_id" ref="base.module_category_services"/>
+    </record>
+
+    <record id="group_gh_dashboard_user" model="res.groups">
+        <field name="name">Dashboard User</field>
+        <field name="sequence">10</field>
+        <field name="privilege_id" ref="privilege_gh_dashboards"/>
+        <field name="implied_ids" eval="[(4, ref('base.group_user'))]"/>
+        <field name="comment">Can open the Green Hub dashboards. KPIs are computed on the server for the whole company; drill-downs still follow the user's own record access.</field>
+    </record>
+
+    <record id="group_gh_dashboard_manager" model="res.groups">
+        <field name="name">Dashboard Manager</field>
+        <field name="sequence">20</field>
+        <field name="privilege_id" ref="privilege_gh_dashboards"/>
+        <field name="implied_ids" eval="[(4, ref('group_gh_dashboard_user'))]"/>
+        <field name="user_ids" eval="[(4, ref('base.user_root')), (4, ref('base.user_admin'))]"/>
+        <field name="comment">Also maintains dashboard configuration, product groups, category rules and snapshots.</field>
+    </record>
+
+    <record id="rule_gh_kpi_snapshot_company" model="ir.rule">
+        <field name="name">KPI snapshots: own companies</field>
+        <field name="model_id" ref="model_gh_kpi_snapshot"/>
+        <field name="domain_force">[('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_gh_dashboard_config_company" model="ir.rule">
+        <field name="name">Dashboard config: own companies</field>
+        <field name="model_id" ref="model_gh_dashboard_config"/>
+        <field name="domain_force">[('company_id', 'in', company_ids)]</field>
+    </record>
+</odoo>

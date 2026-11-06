@@ -1,0 +1,27 @@
+/* IBM Plex Sans, bundled locally (OFL, see static/src/fonts). Never loaded from an external host:
+   an @import in a backend asset once broke a sister client's whole backend. Figures use Georgia. */
+
+@font-face {
+    font-family: "IBM Plex Sans";
+    font-style: normal;
+    font-weight: 400;
+    font-display: swap;
+    src: url("/greenhub_dashboards/static/src/fonts/IBMPlexSans-Regular.woff2") format("woff2");
+}
+
+@font-face {
+    font-family: "IBM Plex Sans";
+    font-style: normal;
+    font-weight: 500;
+    font-display: swap;
+    src: url("/greenhub_dashboards/static/src/fonts/IBMPlexSans-Medium.woff2") format("woff2");
+}
+
+@font-face {
+    font-family: "IBM Plex Sans";
+    font-style: normal;
+    font-weight: 600;
+    font-display: swap;
+    src: url("/greenhub_dashboards/static/src/fonts/IBMPlexSans-SemiBold.woff2") format("woff2");
+}
+

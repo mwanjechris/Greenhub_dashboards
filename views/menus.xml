@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <menuitem id="menu_gh_dashboards_root" name="Green Hub Dashboards" sequence="2"
+        web_icon="greenhub_dashboards,static/description/icon.png"
+        groups="group_gh_dashboard_user"/>
+    <menuitem id="menu_gh_riders" name="Riders &amp; Customers" parent="menu_gh_dashboards_root"
+        action="action_gh_riders_dashboard" sequence="10"/>
+    <menuitem id="menu_gh_config" name="Configuration" parent="menu_gh_dashboards_root"
+        sequence="90" groups="group_gh_dashboard_manager"/>
+    <menuitem id="menu_gh_config_settings" name="Dashboard settings" parent="menu_gh_config"
+        action="action_gh_dashboard_config" sequence="10"/>
+    <menuitem id="menu_gh_config_groups" name="Product groups" parent="menu_gh_config"
+        action="action_gh_product_group" sequence="20"/>
+    <menuitem id="menu_gh_config_rules" name="Vehicle category rules" parent="menu_gh_config"
+        action="action_gh_vehicle_category_rule" sequence="30"/>
+    <menuitem id="menu_gh_config_snapshots" name="KPI snapshots" parent="menu_gh_config"
+        action="action_gh_kpi_snapshot" sequence="40"/>
+</odoo>

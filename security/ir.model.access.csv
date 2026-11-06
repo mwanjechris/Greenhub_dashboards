@@ -1,0 +1,9 @@
+id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
+access_gh_dashboard_config_user,gh.dashboard.config user,model_gh_dashboard_config,group_gh_dashboard_user,1,0,0,0
+access_gh_dashboard_config_manager,gh.dashboard.config manager,model_gh_dashboard_config,group_gh_dashboard_manager,1,1,1,1
+access_gh_product_group_user,gh.product.group user,model_gh_product_group,group_gh_dashboard_user,1,0,0,0
+access_gh_product_group_manager,gh.product.group manager,model_gh_product_group,group_gh_dashboard_manager,1,1,1,1
+access_gh_vehicle_category_rule_user,gh.vehicle.category.rule user,model_gh_vehicle_category_rule,group_gh_dashboard_user,1,0,0,0
+access_gh_vehicle_category_rule_manager,gh.vehicle.category.rule manager,model_gh_vehicle_category_rule,group_gh_dashboard_manager,1,1,1,1
+access_gh_kpi_snapshot_user,gh.kpi.snapshot user,model_gh_kpi_snapshot,group_gh_dashboard_user,1,0,0,0
+access_gh_kpi_snapshot_manager,gh.kpi.snapshot manager,model_gh_kpi_snapshot,group_gh_dashboard_manager,1,1,1,1

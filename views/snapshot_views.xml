@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="gh_kpi_snapshot_list" model="ir.ui.view">
+        <field name="name">gh.kpi.snapshot.list</field>
+        <field name="model">gh.kpi.snapshot</field>
+        <field name="arch" type="xml">
+            <list create="0">
+                <field name="period_end"/>
+                <field name="period_type"/>
+                <field name="metric_code"/>
+                <field name="dim_key"/>
+                <field name="value_count"/>
+                <field name="value_float"/>
+                <field name="source"/>
+                <field name="computed_at"/>
+            </list>
+        </field>
+    </record>
+    <record id="gh_kpi_snapshot_search" model="ir.ui.view">
+        <field name="name">gh.kpi.snapshot.search</field>
+        <field name="model">gh.kpi.snapshot</field>
+        <field name="arch" type="xml">
+            <search>
+                <field name="metric_code"/>
+                <field name="dim_key"/>
+                <filter name="weekly" string="Weekly" domain="[('period_type', '=', 'week')]"/>
+                <filter name="monthly" string="Monthly" domain="[('period_type', '=', 'month')]"/>
+                <filter name="group_metric" string="Metric" context="{'group_by': 'metric_code'}"/>
+                <filter name="group_period" string="Period end" context="{'group_by': 'period_end'}"/>
+            </search>
+        </field>
+    </record>
+    <record id="action_gh_kpi_snapshot" model="ir.actions.act_window">
+        <field name="name">KPI snapshots</field>
+        <field name="res_model">gh.kpi.snapshot</field>
+        <field name="view_mode">list</field>
+    </record>
+</odoo>

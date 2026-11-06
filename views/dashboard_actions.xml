@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="action_gh_riders_dashboard" model="ir.actions.client">
+        <field name="name">Riders &amp; Customers</field>
+        <field name="tag">gh_dashboards.riders</field>
+    </record>
+</odoo>
