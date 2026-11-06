@@ -122,19 +122,40 @@ class GhKpiServiceDrill(models.AbstractModel):
 
     def _drill_payments(self, date_from=None, date_to=None, matched=None, label=None):
         """Odoo customer payments (Accounting) for the side-by-side with GreenHub payment logs."""
-        payments = self._odoo_payments(self._d(date_from), self._d(date_to))
+        date_from, date_to = self._d(date_from), self._d(date_to)
+        payments = self._odoo_payments(date_from, date_to)
         if matched is not None:
-            linked = set(self._logs(self._d(date_from), self._d(date_to)).mapped("payment_id").ids)
-            payments = payments.filtered(lambda p: (p.id in linked) == bool(matched))
+            paired = set(self._match_logs_payments(self._logs(date_from, date_to), payments).values())
+            payments = payments.filtered(lambda p: (p.id in paired) == bool(matched))
         return self._window_action("account.payment", payments.ids, label or _("Customer payments (Odoo)"))
 
     def _drill_logs_unmatched(self, date_from=None, date_to=None, label=None, matched=False):
         """GreenHub logs with (matched=True) or without an Odoo payment in the same dates."""
-        logs = self._logs(self._d(date_from), self._d(date_to))
-        payments = set(self._odoo_payments(self._d(date_from), self._d(date_to)).ids)
-        logs = logs.filtered(lambda l: (l.payment_id.id in payments) == bool(matched))
+        date_from, date_to = self._d(date_from), self._d(date_to)
+        logs = self._logs(date_from, date_to)
+        pairs = self._match_logs_payments(logs, self._odoo_payments(date_from, date_to))
+        logs = logs.filtered(lambda l: (l.id in pairs) == bool(matched))
         return self._window_action("payment.log", logs.ids, label or (
             _("Payment logs matched to an Odoo payment") if matched else _("Payment logs without an Odoo payment")))
+
+    # ------------------------------------------------------------------ Odoo analytic budgets
+    def _drill_budget_entries(self, line_id=None, label=None):
+        """Odoo's own 'achieved' entries of an analytic budget line (budget.line.action_open_budget_entries)."""
+        action = self.env["budget.line"].browse(int(line_id)).action_open_budget_entries()
+        action["views"] = [[False, "list"], [False, "pivot"], [False, "graph"]]
+        if label:
+            action["name"] = label
+        return action
+
+    def _drill_budget(self, budget_id=None, label=None):
+        """The analytic budget in Odoo's Budgets app (form with its lines)."""
+        return {"type": "ir.actions.act_window", "res_model": "budget.analytic", "res_id": int(budget_id),
+                "views": [[False, "form"]], "target": "current", "name": label or _("Budget")}
+
+    def _drill_budget_report(self, budget_id=None, label=None):
+        action = self.env["budget.analytic"].browse(int(budget_id)).action_open_budget_report()
+        action["views"] = [[False, "pivot"], [False, "list"], [False, "graph"]]
+        return action
 
     # ------------------------------------------------------------------ targets / plans
     def _drill_targets(self, version_id=None, metrics=(), dim_keys=None, dim_prefix=None, date_from=None, date_to=None,

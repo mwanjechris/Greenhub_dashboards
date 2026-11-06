@@ -2,7 +2,13 @@
 
 Compared on 6 Nov 2026 against `GREENHUB_DASHBOARDS_REBUILD.md` (the brief), *Odoo Dashboard
 Specifications 2.0* and `greenhub_dashboard_mockups.html`. Verified on a local Odoo 19 database holding
-a pseudonymised ~50-contract sample of the live data (all integrations neutralised).
+a pseudonymised ~50-contract sample of the live data plus a stratified sample of the live 2026
+accounting (4,693 real posted entries, 420 real customer payments, live + simulated budgets; see §5).
+All integrations, crons and mail servers are neutralised.
+
+Last updated 6 Nov 2026 (night): drill-through on every figure; all financial figures read from Odoo
+accounting (P&L report engine, report budgets, analytic budgets, posted journal items); P&L variant
+with EBITDA created on install. 37 automated tests pass; every figure was clicked through in Chrome.
 
 Status key: **Done** = built and tested · **Partial** = built with a stated gap · **Not built**.
 
@@ -13,7 +19,7 @@ Status key: **Done** = built and tested · **Partial** = built with a stated gap
 | Riders & Customers | Same header, filter bar, scorecard clusters, tables, charts and order | As-of is a list of snapshot week ends, not a free date picker. X-axis shows dates, not week numbers. |
 | Portfolio & Credit Risk | Same, incl. 100% stacked risk/PAR bars, shared default block, recovery table, three trend charts | Risk rule text is generated from settings, so wording differs slightly. |
 | Collections & Payments | Same, incl. category-vs-target table, lender-repayment card (from the GL), GreenHub logs vs Odoo payments side by side, forecast, compact default strip | Currency toggle shows only when a lender currency is set. |
-| Budget & Performance | Same, incl. version selector, P&L table, outlook card, ops KPIs, versions table with Import | Hero and P&L show "—" until ledger accounts are mapped (by design: never a fake 0). |
+| Budget & Performance | Same, incl. P&L table, outlook card, ops KPIs, budgets table with Import, plus an Odoo analytic-budgets panel | P&L lines are Odoo's own (labels "Less Costs of Revenue" etc. as in Accounting › Reporting), not the mockup's custom lines. The selector picks an Odoo report budget; a second selector picks the operational target version. |
 
 Design rules kept: closed `gh-` palette copied from Nexus, IBM Plex bundled locally (no `@import`, no CDN),
 Georgia for figures, all styles scoped under `.gh`, colour follows the entity, risk ramp order fixed,
@@ -32,8 +38,9 @@ Charts are the mockup's SVG helpers ported into an OWL component (allowed by bri
 | One definition per KPI | Done (`gh.history.service` holds contract-level rules used live and historically) |
 | No string matching for business logic | Done. Products, models, vehicle categories, payment categories, exit types and accounts come from configuration records. Two one-off *setup helpers* propose tag and exit-type rules from names; a Manager reviews them. The payment memo prefix is a configured rule (the brief prescribes it as fallback). |
 | Every number drills down | Done (7 Nov round): every tile, sub-figure, table cell, total, chart bar/point and hero figure opens the records it was computed from; ledger figures also link the Odoo P&L / General Ledger / Balance Sheet for the same dates. See DRILL_THROUGH.md |
-| Read-only on business data | Done. No greenhub records are written. |
-| Unit tests + reconciliation tests | Done: 20 server tests + 4 headless-browser tests, all passing |
+| Read-only on business data | Done. No greenhub records are written. The only accounting write is the P&L *report variant* (report configuration, created on install, see ACCOUNTING_ALIGNMENT.md). |
+| Financial figures never computed by the dashboard | Done (6 Nov): P&L from Odoo's report engine, budgets from Odoo report budgets and analytic budgets, losses / repayments from posted journal items; tests assert equality with Odoo line by line |
+| Unit tests + reconciliation tests | Done: 33 server tests + 4 headless-browser tests, all passing; fresh install on an empty database verified |
 
 ### 0A codebase and upgrade
 | Item | Status |
@@ -86,7 +93,7 @@ contracts/vehicles can't be filtered by these values yet.
 |---|---|---|
 | P01–P12 | Done | P04 shown as "arrears in default" in the default block |
 | P13 default rate | Done | definition is a setting: "episode" (default) or "payment status only" |
-| P14–P17, P19 losses | Done, needs config | read journal items on accounts mapped to "Default losses" and revenue roles |
+| P14–P17, P19 losses | Done | posted journal items on the write-off ledger picked in settings (live: **601058 Lease Default**, the account the WROFF journal posts to, not 501002); loss/revenue % uses Odoo's P&L Revenue line |
 | P18 default trend | Done | new defaults from default.tracking events; outstanding from snapshots |
 | P20 repossession → refinancing | Done, needs config | requires exit types |
 | P21 arrears recovery | Done | |
@@ -103,6 +110,7 @@ contracts/vehicles can't be filtered by these values yet.
 | C14 shared default block | Done | |
 | C15, C16 financing | Done, needs config | **Changed 6 Nov:** custom lender tables removed. Principal repaid = debits on the loan liability accounts picked in settings; interest = debits on the lender interest accounts. Actual repayments, no forward schedule (Odoo Loans app is not used by Green Hub) |
 | C17 forecast | Done | risk-adjusted uses trailing per-category rates from snapshots |
+| Logs vs Odoo payments (new, 6 Nov) | Done | side by side, matched on `payment_reference` (live never fills `payment.log.payment_id`) |
 | USD conversion | Done | Odoo rates; only when a lender currency is set |
 
 ### 5.4 Budget
@@ -110,10 +118,11 @@ contracts/vehicles can't be filtered by these values yet.
 |---|---|---|
 | B01 import (.xlsx, validation, template) | Done | unknown codes, bad periods, duplicates block the import; missing months warn |
 | B02 versions, approve + lock, revisions | Done | approved versions refuse edits and deletion |
-| B03–B05, B11 financial | Done | **Changed 6 Nov:** read from Odoo's P&L report engine and Odoo report budgets (the budgets finance already keeps: APRIL/MAY BUDGET on live). Tiles are Revenue, Gross profit, EBITDA, Net profit; B11 "financing costs" is replaced by Net profit because Odoo's P&L has no financing line (interest sits in Other Expenses). EBITDA is a line of the "GreenHub P&L (EBITDA)" variant in Accounting › Reporting, created from settings |
+| B03–B05, B11 financial | Done | **Changed 6 Nov:** read from Odoo's P&L report engine and Odoo report budgets (live has APRIL/MAY BUDGET, dated 2024-25; finance's 2026 budgets are analytic budgets, shown in their own panel). Tiles are Revenue, Gross profit, EBITDA, Net profit; B11 "financing costs" is replaced by Net profit because Odoo's P&L has no financing line (interest sits in Other Expenses). EBITDA is a line of the "GreenHub P&L (EBITDA)" variant in Accounting › Reporting, created from settings |
 | B06–B10 operational | Done | end-date basis for portfolio counts |
 | B12 year-end outlook | Done | EBITDA YTD from Odoo + the Odoo report budget chosen as Forecast budget for the rest of the year |
-| Weekly budget rule | Done | monthly ÷ days, shown on the page |
+| Weekly budget rule | Done | monthly ÷ days, shown on the page (operational targets; P&L budgets follow Odoo) |
+| Analytic budgets (Odoo Budgets app) | Done (6 Nov) | every budget overlapping the period with planned, theoretical, achieved and % exactly as Odoo computes them; line → Odoo's achieved entries, budget → Odoo form, "Report" → Odoo budget analysis |
 
 ### 7 and 8
 | Item | Status |
@@ -139,9 +148,56 @@ contracts/vehicles can't be filtered by these values yet.
 7. TVS ALPHA E-HLX and WYLEX ROROSHIP DUAL are in no product group (Green Hub to decide).
 8. `fleet_operations` installs an active Gmail mail server record ("Vehicle Service") on any new database.
 
+9. **Write-offs post to 601058 "Lease Default"**, not to 501002 "Bad Debts Written Off" (the WROFF
+   journal's only expense account in 2026). Settings now suggest the account the write-off journal uses.
+10. **Payment logs reconcile exactly with Odoo payments** (Oct–Nov 2026): 1,918 logs = 1,918 customer
+    payments, UGX 83,646,431 on both sides, matched on `payment_reference`; `payment.log.payment_id` is
+    never filled. 35 payments are dated a day apart from their log (period edges can differ). The other 90
+    Odoo payments are 27 supplier payments and 63 zero-value receipts without a reference.
+11. Live's P&L report budgets (APRIL/MAY BUDGET) cover Jul 2024–May 2025 only; 2026 budgets are kept as
+    analytic budgets (JIF project, Fleet operations). The 2026 P&L budget column needs a 2026 report budget.
+12. 252m of 2026 "Other Income" is Grant Re-imbursement (402004): Net Profit is positive while Operating
+    Income is negative.
+13. No lender interest-expense account exists; loan interest is presumably posted to the loan accounts or
+    bank charges. The lender card shows principal debits only until finance names the interest account.
+14. GreenHub's install calls its own `/api/closure-reasons` over HTTP and logs connection errors when the
+    server isn't listening (seen on the fresh-install test; harmless, pre-existing).
+
 ## 4. Sample-data effects (not defects)
 
 The local sample keeps open instalments and only the last eight weeks of paid ones per contract. Older
 months therefore have receipts but few dues: collection rates before September and past arrears are
-distorted. Last month's figures (full data) are realistic. No journal entries were copied, so all P&L
-lines show "—".
+distorted. Last month's figures (full data) are realistic.
+
+The accounting sample holds up to 100 whole entries per journal per month, so P&L amounts are a fraction
+of live (e.g. Revenue YTD 19.1m in the sample); ratios and the dashboard = Odoo equality are what it proves.
+
+## 5. Local test data (greenhub19_local)
+
+Built by `tools/local_test_data/sample_accounting_from_live_copy.py` from the neutralised live copy
+(read-only access granted for the run and revoked after):
+
+| Data | Origin |
+|---|---|
+| Chart of accounts (292), journals, analytic plans/accounts | real (cashbooks named after people renamed Cashbook A/B) |
+| 4,693 posted 2026 journal entries | real amounts, dates, accounts, analytic tags; up to 100 entries per journal per month + every analytic entry; partners pseudonymised, labels = account name |
+| 420 customer payments (Oct–Nov) | real, same references as the sampled payment logs |
+| APRIL / MAY BUDGET report budgets, 3 analytic budgets (JIF project ×2, Fleet operations) | real |
+| "SIMULATED 2026 P&L budget", "SIMULATED 2026 forecast Nov-Dec" (report budgets) | simulated: each month's actual per account × 0.85–1.15 (Nov–Dec: Jan–Oct average) |
+| "SIMULATED 2026 cost budget by cost plan" (analytic) | simulated: achieved × 1.05–1.6, or 3–25m where nothing was spent |
+| Dashboard settings | P&L = GreenHub P&L (EBITDA); loss ledger 601058; loans 200002–200006; add-backs 501024–501027 |
+
+Backup before the import: `~/greenhub_live_copy/greenhub19_local_before_accounting_sample_20261106.dump`.
+
+## 6. Quality analysis (6 Nov night)
+
+| Check | Result |
+|---|---|
+| Automated tests | 37/37 pass (33 server incl. 8 accounting-alignment and 5 drill-through tests, 4 headless browser) |
+| Dashboard = Odoo | tests post entries/budgets and compare every P&L line, budget column, analytic achieved, loss and repayment figure with Odoo's own computation |
+| Fresh install on an empty database | passes; the P&L variant (12 lines incl. GH_DA, GH_EBITDA) and settings link are created by the install hook; upgrades get it from `migrations/19.0.1.1.0` |
+| Chrome click-through | every figure on all four dashboards (Riders 94, Portfolio 75, Collections 73, Budget 108 targets) opens its records or Odoo report; no errors |
+| Screenshots | `build_*.png` in the review folder, all panels load, no panel errors |
+| Load time (sample) | 0.07–0.5 s per dashboard; Budget runs Odoo's P&L ~14× per load (period, month, 10 months, outlook) — measure on full live volume before go-live |
+| Bugs found and fixed in this round | licence tile crashed on click; recovery cell opened the wrong month; budget % column overwrote the budget figure; matched-payments count was always 0 on live data (wrong key); variant could duplicate when renamed; loss-ledger guess was the wrong account |
+| Open | P&L budget column empty on live until a 2026 report budget exists; lender interest account to be named; performance at full volume; CODEBASE_MAP and greenhub characterisation tests (brief 0A) not built; ported `fleet_operations` / `requisitions` branches not pushed (client repos, awaiting go-ahead) |

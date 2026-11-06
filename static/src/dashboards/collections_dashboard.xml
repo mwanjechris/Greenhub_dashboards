@@ -152,7 +152,7 @@
         <div class="gh-ptitle"><h3 class="gh-h3">GreenHub payment logs vs Odoo payments</h3>
           <span class="gh-rpts"><span style="font:400 12px var(--gh-sans);color:var(--gh-ink-soft)"><t t-esc="periodTitle"/> · same dates, company currency</span>
             <span class="gh-rpt" t-on-click="() => this.drill('payments', {date_from: lp.from, date_to: lp.to})">Customer payments ↗</span></span></div>
-        <div class="gh-pcap">Logs are the GreenHub app's successful inbound transactions (what the tiles above count). Odoo payments are the posted customer payments in Accounting. Matched = the log points at that Odoo payment</div>
+        <div class="gh-pcap">Logs are the GreenHub app's successful inbound transactions (what the tiles above count). Odoo payments are the posted customer payments in Accounting. Matched = same payment reference (or the log points at the payment)</div>
         <table class="t">
           <thead><tr><th/><th class="r">GreenHub logs</th><th class="r">Amount</th><th class="r">Odoo payments</th><th class="r">Amount</th></tr></thead>
           <tbody>

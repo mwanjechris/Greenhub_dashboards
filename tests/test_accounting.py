@@ -57,7 +57,8 @@ class TestAccountingAlignment(TransactionCase):
         self._post([(self.income, -1_000_000), (self.ev_dep, 200_000), (self.cash, 800_000)])
         after, data = self._pl()
         period = data["period"]
-        odoo = self._odoo_pl(fields.Date.to_date(period["from"]), fields.Date.to_date(period["to"]))
+        odoo = self._odoo_pl(fields.Date.to_date(period["from"]), fields.Date.to_date(period["to"]),
+                             report=self.config._pl_report())
         for key, line in after.items():
             self.assertAlmostEqual(line["actual"], odoo[key][0] or 0.0, places=2, msg=f"{key} must equal Odoo's P&L")
         self.assertAlmostEqual(after["REV"]["actual"] - before["REV"]["actual"], 1_000_000, places=2)
@@ -95,7 +96,8 @@ class TestAccountingAlignment(TransactionCase):
         before, _d = self._pl()
         lines, data = self._pl(budget_id=budget.id)
         period = data["period"]
-        odoo = self._odoo_pl(fields.Date.to_date(period["from"]), fields.Date.to_date(period["to"]), budget=budget)
+        odoo = self._odoo_pl(fields.Date.to_date(period["from"]), fields.Date.to_date(period["to"]),
+                             report=self.config._pl_report(), budget=budget)
         self.assertAlmostEqual(lines["REV"]["budget"], odoo["REV"][1], places=2)
         self.assertGreaterEqual(lines["REV"]["budget"], 500_000 - 0.01)
 
@@ -125,3 +127,72 @@ class TestAccountingAlignment(TransactionCase):
         action = self.svc.get_drill("payments", {"date_from": p["from"], "date_to": p["to"]})
         self.assertEqual(len(action["domain"][0][2]), lp["payments"]["count"])
         self.assertAlmostEqual(lp["difference"], lp["logs"]["amount"] - lp["payments"]["amount"], places=2)
+
+    def test_install_trigger_creates_variant_once(self):
+        self.env["gh.dashboard.config"]._ensure_pl_variant_all_companies()
+        self.env["gh.dashboard.config"]._ensure_pl_variant_all_companies()
+        variants = self.env.ref("greenhub_dashboards.gh_pl_ebitda_variant")
+        self.assertEqual(self.env["account.report"].search_count([("name", "=", "GreenHub P&L (EBITDA)")]), 1,
+                         "install + upgrade trigger is idempotent")
+        self.assertEqual(self.config.pl_report_id, variants)
+        codes = set(variants.line_ids.mapped("code"))
+        self.assertTrue({"GH_REV", "GH_INC", "GH_DA", "GH_EBITDA", "GH_NEP"} <= codes, codes)
+        self.assertEqual(self.env.ref("greenhub_dashboards.gh_pl_ebitda_variant"), variants)
+        variants.name = "Renamed by finance"
+        self.env["gh.dashboard.config"]._ensure_pl_variant_all_companies()
+        self.assertEqual(self.env["account.report"].search_count([("root_report_id", "=", variants.root_report_id.id),
+                                                                  ("line_ids.code", "=", "GH_EBITDA")]), 1,
+                         "renaming does not create a second variant")
+        ebitda = variants.line_ids.filtered(lambda l: l.code == "GH_EBITDA").expression_ids
+        self.assertEqual(ebitda.formula, "GH_INC.balance + GH_DA.balance")
+
+    def test_logs_match_payments_by_reference(self):
+        used = set(self.env["account.payment"].search([("payment_reference", "!=", False)]).mapped("payment_reference"))
+        log = self.env["payment.log"].search([("payment_reference", "!=", False), ("status", "=", "success"),
+                                              ("payment_type", "!=", "outbound"), ("payment_reference", "not in", list(used))],
+                                             limit=1)
+        if not log:
+            self.skipTest("no payment log in this database")
+        day = log.attempt_date.date()
+        before = self.svc._logs_vs_payments(day, day)
+        journal = self.env["account.journal"].search([("type", "in", ("bank", "cash")), ("company_id", "=", self.env.company.id)], limit=1)
+        partner = log.partner_id or self.env["res.partner"].create({"name": "gh test payer"})
+        pay = self.env["account.payment"].create({"payment_type": "inbound", "partner_type": "customer", "partner_id": partner.id,
+                                                  "amount": log.amount, "date": day, "journal_id": journal.id,
+                                                  "payment_reference": log.payment_reference})
+        pay.action_post()
+        after = self.svc._logs_vs_payments(day, day)
+        self.assertEqual(after["payments"]["count"], before["payments"]["count"] + 1)
+        self.assertEqual(after["matched"]["payments"], before["matched"]["payments"] + 1,
+                         "matched on payment_reference, as on live (payment_id is never filled there)")
+        action = self.svc.get_drill("payments", {"date_from": str(day), "date_to": str(day), "matched": True})
+        self.assertIn(pay.id, action["domain"][0][2])
+
+    def test_analytic_budgets_panel_reads_odoo_budgets(self):
+        plan = self.env["account.analytic.plan"].create({"name": "GH test plan"})
+        acc = self.env["account.analytic.account"].create({"name": "GH test cost centre", "plan_id": plan.id})
+        budget = self.env["budget.analytic"].create({"name": "GH test analytic budget", "budget_type": "expense",
+                                                     "date_from": self.day.replace(month=1, day=1),
+                                                     "date_to": self.day.replace(month=12, day=31)})
+        line = self.env["budget.line"].create({"budget_analytic_id": budget.id, plan._column_name(): acc.id,
+                                               "budget_amount": 1_000_000})
+        budget.action_budget_confirm()
+        move = self.env["account.move"].create({
+            "move_type": "entry", "journal_id": self.journal.id, "date": self.day,
+            "line_ids": [(0, 0, {"account_id": self.interest.id, "debit": 250_000, "name": "gh test",
+                                 "analytic_distribution": {str(acc.id): 100}}),
+                         (0, 0, {"account_id": self.cash.id, "credit": 250_000, "name": "gh test"})]})
+        move.action_post()
+        self.env.invalidate_all()  # as a fresh request would: achieved_amount is a non-stored compute
+        data = self.svc.get_budget_dashboard(period="ytd")
+        panel = data["analytic_budgets"]
+        self.assertTrue(panel["ok"], panel)
+        row = next(b for b in panel["budgets"] if b["id"] == budget.id)
+        got = next(l for l in row["lines"] if l["id"] == line.id)
+        self.assertEqual(got["planned"], 1_000_000)
+        self.assertAlmostEqual(got["achieved"], 250_000, places=2)
+        self.assertAlmostEqual(got["achieved"], line.achieved_amount, places=2, msg="achieved is Odoo's own figure")
+        for kind, args in (("budget", {"budget_id": budget.id}), ("budget_report", {"budget_id": budget.id}),
+                           ("budget_entries", {"line_id": line.id})):
+            action = self.svc.get_drill(kind, args)
+            self.assertTrue(action.get("views"), kind)

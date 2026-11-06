@@ -199,13 +199,28 @@ class GhKpiServiceCollections(models.AbstractModel):
             ("state", "not in", ("draft", "canceled", "rejected")), ("company_id", "=", self.env.company.id),
             ("date", ">=", date_from), ("date", "<=", date_to)])
 
+    @staticmethod
+    def _log_payment_key(log):
+        return log.payment_reference or False
+
+    def _match_logs_payments(self, logs, payments):
+        """Pair GreenHub logs with Odoo payments: same payment_reference (how live links them: 1,918 of 1,918
+        Oct-Nov logs), or the log's payment_id when the app fills it."""
+        by_ref = {p.payment_reference: p for p in payments if p.payment_reference}
+        pairs = {}
+        for log in logs:
+            pay = (log.payment_id if log.payment_id in payments else False) or by_ref.get(log.payment_reference)
+            if pay:
+                pairs[log.id] = pay.id
+        return pairs
+
     def _logs_vs_payments(self, date_from, date_to):
         """GreenHub payment logs next to Odoo customer payments for the same dates (amounts in company currency)."""
         logs = self._logs(date_from, date_to)
         payments = self._odoo_payments(date_from, date_to)
-        pay_ids = set(payments.ids)
-        matched_logs = logs.filtered(lambda l: l.payment_id.id in pay_ids)
-        matched_pay = payments.filtered(lambda p: p.id in set(matched_logs.mapped("payment_id").ids))
+        pairs = self._match_logs_payments(logs, payments)
+        matched_logs = logs.filtered(lambda l: l.id in pairs)
+        matched_pay = payments.browse(set(pairs.values()))
         amount = lambda ps: sum(abs(p.amount_company_currency_signed) for p in ps)
         logs_total = sum(logs.mapped("amount"))
         pay_total = amount(payments)
@@ -218,6 +233,7 @@ class GhKpiServiceCollections(models.AbstractModel):
             "logs_only": {"count": len(logs) - len(matched_logs), "amount": logs_total - sum(matched_logs.mapped("amount"))},
             "payments_only": {"count": len(payments) - len(matched_pay), "amount": pay_total - amount(matched_pay)},
             "difference": logs_total - pay_total,
+            "match_key": "payment reference",
         }
 
     def _target_version(self, version_id=None):

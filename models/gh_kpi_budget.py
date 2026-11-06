@@ -208,6 +208,27 @@ class GhKpiServiceBudget(models.AbstractModel):
                     "approved_full_year": approved,
                     "outlook": (actual + fc) if actual is not None and fc is not None else None}
 
+        def analytic_budgets():
+            """Odoo Budgets app (budget.analytic): planned, achieved and theoretical as Odoo computes them."""
+            roots = self.env["account.analytic.plan"].sudo().search([("parent_id", "=", False)])
+            plan_fields = [p._column_name() for p in roots]
+            out = []
+            for b in self.env["budget.analytic"].search([("state", "!=", "canceled"), ("date_from", "<=", end),
+                                                          ("date_to", ">=", start)], order="date_from desc, id desc"):
+                lines = []
+                for l in b.budget_line_ids:
+                    label = " · ".join(l[f].display_name for f in plan_fields if f in l._fields and l[f]) or _("(no analytic)")
+                    lines.append({"id": l.id, "label": label, "planned": l.budget_amount, "achieved": l.achieved_amount,
+                                  "theoretical": l.theoritical_amount, "pct": round(l.achieved_percentage, 1)
+                                  if l.achieved_percentage is not None else None,
+                                  "above": l.is_above_budget})
+                out.append({"id": b.id, "name": b.name, "state": b.state,
+                            "state_label": dict(b._fields["state"].selection).get(b.state, b.state),
+                            "type": b.budget_type, "from": ds(b.date_from), "to": ds(b.date_to),
+                            "planned": sum(x["planned"] for x in lines), "achieved": sum(x["achieved"] for x in lines),
+                            "lines": lines})
+            return {"budgets": out}
+
         return {
             "as_of": ds(on), "computed_at": fields.Datetime.to_string(fields.Datetime.now()),
             "company": self.env.company.name, "currency": self.env.company.currency_id.name,
@@ -225,5 +246,6 @@ class GhKpiServiceBudget(models.AbstractModel):
             "revenue_by_month": self._panel(revenue_by_month),
             "operational": self._panel(operational),
             "outlook": self._panel(outlook),
+            "analytic_budgets": self._panel(analytic_budgets),
             "is_manager": self.env.user.has_group("greenhub_dashboards.group_gh_dashboard_manager"),
         }

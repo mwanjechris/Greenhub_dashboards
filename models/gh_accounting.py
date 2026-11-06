@@ -16,6 +16,7 @@ from odoo import _, api, fields, models
 from odoo.exceptions import UserError
 
 VARIANT_NAME = "GreenHub P&L (EBITDA)"
+VARIANT_XMLID = "greenhub_dashboards.gh_pl_ebitda_variant"
 # standard P&L line codes the dashboard reads; a variant made by the button prefixes them with GH_
 PL_KEYS = ("REV", "COS", "GRP", "EXP", "INC", "EBITDA", "OIN", "OEXP", "NEP")
 
@@ -70,7 +71,9 @@ class GhDashboardConfigAccounting(models.Model):
         if not std:
             raise UserError(_("Odoo's Profit and Loss report (Accounting reports) is not installed."))
         Report = self.env["account.report"].sudo()
-        variant = Report.search([("root_report_id", "=", std.id), ("name", "=", VARIANT_NAME)], limit=1)
+        # identified by a module xmlid, so finance can rename it without a second copy appearing on upgrade
+        variant = self.env.ref(VARIANT_XMLID, raise_if_not_found=False) or \
+            Report.search([("root_report_id", "=", std.id), ("name", "=", VARIANT_NAME)], limit=1)
         if not variant:
             variant = std.sudo().copy({"root_report_id": std.id})
             variant.name = VARIANT_NAME  # copy() forces "<name> (copy)"
@@ -106,12 +109,27 @@ class GhDashboardConfigAccounting(models.Model):
                 "expression_ids": [(0, 0, {"label": "balance", "engine": "aggregation",
                                            "formula": "GH_INC.balance + GH_DA.balance", "date_scope": "strict_range"})],
             })
+        module, name = VARIANT_XMLID.split(".")
+        if not self.env["ir.model.data"].sudo().search_count([("module", "=", module), ("name", "=", name)]):
+            self.env["ir.model.data"].sudo().create({"module": module, "name": name, "model": "account.report",
+                                                     "res_id": variant.id, "noupdate": True})
         self.pl_report_id = variant
         self._sync_addback()
         return {"type": "ir.actions.client", "tag": "display_notification", "params": {
             "type": "success", "sticky": False,
             "message": _("'%s' is in Accounting > Reporting > Profit and Loss (variant selector). "
                          "The Budget dashboard now reads it.", VARIANT_NAME)}}
+
+    @api.model
+    def _ensure_pl_variant_all_companies(self):
+        """Install / upgrade trigger: one GreenHub P&L variant, add-backs suggested when none are set."""
+        if not self._standard_pl():
+            return
+        for company in self.env["res.company"].search([]):
+            config = self.with_company(company).with_context(allowed_company_ids=company.ids)._get_config(company)
+            if not config.ebitda_addback_account_ids:
+                config.action_suggest_addback_accounts()
+            config.action_create_pl_variant()
 
     def _sync_addback(self):
         for config in self:
@@ -130,7 +148,8 @@ class GhDashboardConfigAccounting(models.Model):
 
     def action_suggest_addback_accounts(self):
         self.ensure_one()
-        accounts = self.env["account.account"].search([
+        accounts = self.env["account.account"].with_company(self.company_id).search([
+            ("company_ids", "in", self.company_id.ids),
             ("account_type", "in", ("expense_direct_cost", "expense")),
             "|", "|", ("name", "ilike", "depreciat"), ("name", "ilike", "amorti"), ("name", "ilike", "amortiz")])
         self.ebitda_addback_account_ids = [(6, 0, accounts.ids)]
@@ -139,8 +158,15 @@ class GhDashboardConfigAccounting(models.Model):
         self.ensure_one()
         Account = self.env["account.account"]
         if not self.default_loss_account_ids:
-            self.default_loss_account_ids = Account.search([("account_type", "like", "expense"), "|",
-                                                            ("name", "ilike", "bad debt"), ("name", "ilike", "written off")])
+            # what the write-off journal actually posts to (live: 601058 Lease Default), else by name
+            used = self.env["account.move.line"].sudo()._read_group(
+                [("parent_state", "=", "posted"), ("debit", ">", 0), ("account_id.account_type", "like", "expense"),
+                 ("company_id", "=", self.company_id.id), "|", ("journal_id.name", "ilike", "write"),
+                 ("journal_id.code", "ilike", "WROFF")], ["account_id"], ["debit:sum"])
+            accounts = Account.browse([acc.id for acc, _d in used])
+            self.default_loss_account_ids = accounts or Account.search([
+                ("account_type", "like", "expense"), "|", "|", ("name", "ilike", "bad debt"),
+                ("name", "ilike", "written off"), ("name", "ilike", "lease default")])
         if not self.loan_account_ids:
             self.loan_account_ids = Account.search([("account_type", "like", "liability"), ("name", "ilike", "loan")])
 

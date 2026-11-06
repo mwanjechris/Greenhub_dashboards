@@ -4,11 +4,12 @@
     "author": "Tech Things",
     "website": "https://www.techthings.it",
     "category": "Productivity",
-    "version": "19.0.1.0.0",
+    "version": "19.0.1.1.0",
     "license": "LGPL-3",
-    "depends": ["greenhub", "fleet", "account", "account_reports", "mail"],
+    "depends": ["greenhub", "fleet", "account", "account_reports", "account_budget", "mail"],
     # Explicit installs only: the Green Hub server is shared by several tenants.
     "auto_install": False,
+    "post_init_hook": "post_init_hook",
     "data": [
         "security/security.xml",
         "security/ir.model.access.csv",

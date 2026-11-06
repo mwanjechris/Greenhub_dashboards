@@ -173,6 +173,32 @@
           </table>
         </div>
       </div>
+
+      <div class="gh-panel scrollx" t-if="ok('analytic_budgets')">
+        <div class="gh-ptitle"><h3 class="gh-h3">Analytic budgets (Odoo Budgets)</h3>
+          <span style="font:400 12px var(--gh-sans);color:var(--gh-ink-soft)">Budgets overlapping the period · planned, achieved and theoretical exactly as Odoo computes them</span></div>
+        <div class="gh-pcap">Click a budget to open it in Odoo, a line (or its achieved amount) for the entries behind it, "Report" for Odoo's budget analysis</div>
+        <div class="empty" t-if="!d.analytic_budgets.budgets.length"><b>No analytic budget overlaps this period</b>Create one in Accounting › Budgets.</div>
+        <table class="t" t-else="">
+          <thead><tr><th>Budget / analytic line</th><th>Status</th><th class="r">Planned</th><th class="r">Theoretical</th><th class="r">Achieved</th><th class="r">Achieved %</th></tr></thead>
+          <tbody>
+            <t t-foreach="d.analytic_budgets.budgets" t-as="b" t-key="b.id">
+              <tr style="font-weight:600" t-on-click="() => this.drill('budget', {budget_id: b.id, label: b.name})">
+                <td><t t-esc="b.name"/> <span class="muted" t-esc="shortDate(b.from) + ' – ' + shortDate(b.to)"/>
+                  <span class="gh-rpt" style="margin-left:6px;padding:0 6px" t-on-click.stop="() => this.drill('budget_report', {budget_id: b.id})">Report ↗</span></td>
+                <td><span t-att-class="'st ' + (b.state === 'draft' ? 'neu' : 'fav')" t-esc="b.state_label"/></td>
+                <td class="r" t-esc="fmtMoney(b.planned)"/><td/><td class="r" t-esc="fmtMoney(b.achieved)"/><td/></tr>
+              <t t-foreach="b.lines" t-as="l" t-key="l.id">
+                <tr t-on-click="() => this.drill('budget_entries', {line_id: l.id, label: b.name + ' · ' + l.label})">
+                  <td style="padding-left:14px" t-esc="l.label"/><td/>
+                  <td class="r" t-esc="fmtMoney(l.planned)"/><td class="r" t-esc="fmtMoney(l.theoretical)"/>
+                  <td class="r lnk" t-on-click.stop="() => this.drill('budget_entries', {line_id: l.id, label: b.name + ' · ' + l.label})" t-esc="fmtMoney(l.achieved)"/>
+                  <td class="r"><span t-if="l.pct !== null" t-att-class="'st ' + (l.above ? 'unf' : 'neu')" t-esc="l.pct + '%'"/></td></tr>
+              </t>
+            </t>
+          </tbody>
+        </table>
+      </div>
     </div>
   </div>
   </t>

@@ -19,7 +19,8 @@ accounting reports.
 | `pl_cell` | Odoo's own audit of a P&L report cell: exactly what clicking that figure in Accounting › Reporting › Profit and Loss opens | Every P&L actual (month and period), financial tiles, hero, revenue bars, EBITDA YTD |
 | `report` + budget | Odoo P&L (the configured variant) with the dashboard's Odoo budget switched on | Every P&L budget figure, outlook forecast + approved budget, budgets table |
 | `ledger` | Posted journal items on ledger accounts picked in settings, grouped by account | Default losses (YTD, monthly bars, average, B10), lender principal and interest |
-| `payments` / `logs_unmatched` | Odoo customer payments (all, matched, unmatched) and GreenHub logs with no Odoo payment | Logs-vs-payments panel |
+| `payments` / `logs_unmatched` | Odoo customer payments (all, matched, unmatched) and GreenHub logs with or without an Odoo payment (matched on payment reference) | Logs-vs-payments panel |
+| `budget` / `budget_entries` / `budget_report` | Odoo analytic budget form, Odoo's own achieved entries of a budget line, Odoo's budget analysis | Analytic budgets panel |
 | `targets` | Operational target lines (riders, fleet, collections, default-loss limit) | Ops plans (B06–B10), C06 and category targets |
 | `snapshots` | Contract snapshot rows for one period end (arrears, risk, PAR, due, collected per contract) | Arrears and average-arrears trends, risk trend (per category), default trend, recovery table, collection-rate trend |
 | `kpi_snapshots` | Stored KPI values for one period | Unassigned e-bodas over time (vehicle lists are not snapshotted) |
