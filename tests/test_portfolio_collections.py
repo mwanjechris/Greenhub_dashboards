@@ -160,3 +160,26 @@ class TestPortfolioCollections(TransactionCase):
             failed = {k: v.get("error") for k, v in payload.items()
                       if isinstance(v, dict) and v.get("ok") is False and v.get("error") != "live_only"}
             self.assertFalse(failed, f"{method}: {failed}")
+
+    def test_licence_reminder_once(self):
+        rider = self.env["rider"].create({"first_name": "L", "last_name": "Ic",
+                                          "license_end_date": self.today + timedelta(days=10)})
+        contract = self.env["rider.contract"].create({"rider_id": rider.id})
+        contract.write({"state": "running"})
+        Reminder = self.env["gh.licence.reminder"]
+        first = Reminder._cron_licence_reminders().filtered(lambda a: a.res_id == rider.id)
+        self.assertEqual(len(first), 1)
+        self.assertEqual(first.date_deadline, rider.license_end_date)
+        second = Reminder._cron_licence_reminders().filtered(lambda a: a.res_id == rider.id)
+        self.assertFalse(second, "no duplicate while the first reminder is open")
+
+    def test_check7_compares_frozen_live_snapshot(self):
+        end = self.today - timedelta(days=(self.today.weekday() + 1))  # last Sunday
+        self.env["gh.kpi.snapshot"]._upsert(self.env.company, "week", end - timedelta(days=6), end,
+                                            [("R01", "", 0.0, 99999)], "cron")
+        self.env["gh.contract.snapshot"].create({"contract_id": self.env["rider.contract"].create(
+            {"rider_id": self.env["rider"].create({"first_name": "C", "last_name": "Seven"}).id}).id,
+            "period_type": "week", "period_end": end, "source": "cron", "is_active": True})
+        result = self.history.backfill(end - timedelta(days=1), end + timedelta(days=1), ("week",))
+        self.assertEqual(result.get("frozen_week"), 1, "a live snapshot freezes its period")
+        self.assertIn("R01 live 99,999", result["check7"][0])

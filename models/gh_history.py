@@ -394,11 +394,25 @@ class GhHistoryService(models.AbstractModel):
             contract_rows = self._reconstructed_contract_rows(period_type, ends)
             vehicle_rows = self._vehicle_rows(ends)
             for end in ends:
-                if self._write(period_type, end, contract_rows[end],
-                               self._kpi_rows(contract_rows[end], end, vehicle_rows[end]), "backfill", force):
+                kpi_rows = self._kpi_rows(contract_rows[end], end, vehicle_rows[end])
+                if self._write(period_type, end, contract_rows[end], kpi_rows, "backfill", force):
                     written[period_type] += 1
+                else:
+                    written["frozen_" + period_type] += 1
+                    self._compare_with_live(period_type, end, kpi_rows, written)
         _logger.info("Green Hub backfill wrote %s", dict(written))
         return dict(written)
+
+    def _compare_with_live(self, period_type, end, kpi_rows, out):
+        """Check 7: a frozen live snapshot vs the reconstruction for the same period end."""
+        live = {(s.metric_code, s.dim_key or ""): (s.value_count or s.value_float)
+                for s in self.env["gh.kpi.snapshot"].sudo().search([
+                    ("period_type", "=", period_type), ("period_end", "=", end),
+                    ("company_id", "=", self.env.company.id), ("metric_code", "in", ["R01", "P01", "P02"])])}
+        rebuilt = {(c, d or ""): (n or f) for c, d, f, n in kpi_rows if c in ("R01", "P01", "P02")}
+        diffs = [f"{c}{':' + d if d else ''} live {live[(c, d)]:,.0f} vs rebuilt {v:,.0f}"
+                 for (c, d), v in rebuilt.items() if (c, d) in live and abs(live[(c, d)] - v) > 0.5]
+        out.setdefault("check7", []).append(f"{end}: " + ("; ".join(diffs) if diffs else "matches"))
 
     @api.model
     def comparison_csv(self, period_type="week"):
@@ -451,10 +465,13 @@ class GhBackfillWizard(models.TransientModel):
         types = [t for t, on in (("week", self.weekly), ("month", self.monthly)) if on]
         written = self.env["gh.history.service"].backfill(self.date_from, self.date_to, types, self.force)
         csv_text = self.env["gh.history.service"].comparison_csv("week")
+        check7 = written.get("check7", [])
         self.write({
             "result": _("Written: %(w)s weekly and %(m)s monthly periods, by %(u)s at %(t)s.",
                         w=written.get("week", 0), m=written.get("month", 0), u=self.env.user.name,
-                        t=fields.Datetime.now()),
+                        t=fields.Datetime.now())
+                      + ("\n" + _("Frozen live periods compared with the reconstruction (check 7):") + "\n"
+                         + "\n".join(check7) if check7 else ""),
             "csv_file": base64.b64encode(csv_text.encode()),
         })
         return {"type": "ir.actions.act_window", "res_model": self._name, "res_id": self.id,

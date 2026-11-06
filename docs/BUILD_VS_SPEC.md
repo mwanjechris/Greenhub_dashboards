@@ -33,7 +33,7 @@ Charts are the mockup's SVG helpers ported into an OWL component (allowed by bri
 | No string matching for business logic | Done. Products, models, vehicle categories, payment categories, exit types and accounts come from configuration records. Two one-off *setup helpers* propose tag and exit-type rules from names; a Manager reviews them. The payment memo prefix is a configured rule (the brief prescribes it as fallback). |
 | Every number drills down | Done for counts and amounts backed by records; rate tiles (C03, C08, C09) and P03 are derived and not clickable |
 | Read-only on business data | Done. No greenhub records are written. |
-| Unit tests + reconciliation tests | Done: 18 server tests + 4 headless-browser tests, all passing |
+| Unit tests + reconciliation tests | Done: 20 server tests + 4 headless-browser tests, all passing |
 
 ### 0A codebase and upgrade
 | Item | Status |
@@ -50,7 +50,8 @@ Charts are the mockup's SVG helpers ported into an OWL component (allowed by bri
 | contract `gh_exit_type` | Partial: computed by `gh.exit.type.rule` (closure reason on contract or termination; upgrade link) |
 | contract `gh_default_date`, `gh_write_off_date/amount`, `gh_repossession_date` | Partial: derived (default.tracking, written-off schedules, termination date); not stored |
 | contract `gh_ever_late_fee` | Partial: derived (penalty date/invoice on schedules, penalty totals) |
-| rider learner licence + 30-day expiry activity | **Not built** (needs a greenhub change; the licence panel says learners aren't recorded) |
+| rider learner licence | **Not built** (needs a greenhub field; the licence panel says learners aren't recorded) |
+| 30-day licence expiry activity | Done: daily cron, one to-do per rider for the responsible user, no duplicates |
 | vehicle `gh_category`, `gh_ever_contracted` | Partial: computed by ordered `gh.vehicle.category.rule`; not stored |
 
 Not storing them keeps the module read-only on greenhub models; the cost is that list views of
@@ -77,8 +78,8 @@ contracts/vehicles can't be filtered by these values yet.
 | R13 growth | Done | identity checked every period; exits split planned / default / other |
 | R14 referral | Done | **Finding:** Green Hub records the source on the rider's UTM source; the selection field is empty for every active rider |
 | R15, R16 | Done | R16 uses tracked vehicle state and today's tags |
-| R17 accidents | Partial | count and rate per 100 bikes; no breakdown by type |
-| R18 licences | Partial | counts + expiring list; learner permits and the reminder activity not built |
+| R17 accidents | Partial | count and rate per 100 bikes; no breakdown by type because `fleet.vehicle.accident` has no type field |
+| R18 licences | Partial | counts, expiring list and reminder activity; learner permits not recorded in Odoo |
 
 ### 5.2 Portfolio & Credit Risk
 | Code | Status | Note |
@@ -120,7 +121,7 @@ contracts/vehicles can't be filtered by these values yet.
 | Odoo 19 APIs (OWL, `_read_group`, `privilege_id`, cron without numbercall) | Done |
 | Performance < 1.5 s per dashboard | Sample: 0.14–0.22 s. Not yet measured at full volume. |
 | Checks 1–6 (sums, P01 ≥ R01, R13 identity, C04 categories) | Done, shown in each filter bar |
-| Check 7 (latest closed week snapshot = live at that week end) | **Not built** as an automatic check |
+| Check 7 (live snapshot = reconstruction for the same week) | Done: the backfill compares every frozen live period and reports differences |
 | Check 8 (backfill CSV vs Green Hub's sheets) | CSV built; the comparison itself is Green Hub's sign-off step |
 | Check 9 baseline (197 / 27 / 170 …) | Verified on the full neutralised copy by SQL: 197, 27, 170 match; youth is 163 by DOB (+6 without DOB) vs 168 |
 

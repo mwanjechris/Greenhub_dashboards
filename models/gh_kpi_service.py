@@ -600,3 +600,38 @@ class GhKpiService(models.AbstractModel):
             ("R06", "kind:refinancing", 0.0, fleet["unassigned"]["refinancing"]),
         ]
         return rows
+
+
+class GhLicenceReminder(models.AbstractModel):
+    _name = "gh.licence.reminder"
+    _description = "Green Hub licence expiry reminders (R18)"
+
+    @api.model
+    def _cron_licence_reminders(self):
+        """One to-do per rider whose licence ends within the notice window (spec R18).
+
+        Only riders on a running/paused contract; assigned to the rider's responsible
+        user; never duplicated while an open reminder exists.
+        """
+        config = self.env["gh.dashboard.config"]._get_config()
+        today = fields.Date.context_today(self)
+        limit = today + timedelta(days=config.licence_notice_days)
+        contracts = self.env["rider.contract"].sudo().search([("state", "in", ACTIVE_STATES)])
+        riders = contracts.mapped("rider_id").filtered(
+            lambda r: r.license_end_date and today <= r.license_end_date <= limit and r.license_status != "no_license")
+        todo = self.env.ref("mail.mail_activity_data_todo")
+        model_id = self.env["ir.model"]._get_id("rider")
+        Activity = self.env["mail.activity"].sudo()
+        existing = set(Activity.search([("res_model", "=", "rider"), ("res_id", "in", riders.ids),
+                                        ("summary", "=like", "Licence expires%")]).mapped("res_id"))
+        created = Activity.browse()
+        for rider in riders:
+            if rider.id in existing:
+                continue
+            created |= Activity.create({
+                "res_model_id": model_id, "res_id": rider.id, "activity_type_id": todo.id,
+                "summary": _("Licence expires on %s", rider.license_end_date),
+                "date_deadline": rider.license_end_date,
+                "user_id": (rider.responsible_user or self.env.user).id,
+            })
+        return created
