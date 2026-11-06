@@ -110,7 +110,7 @@ export class CollectionsDashboard extends GhDashboardBase {
     }
 
     lossItems(dateFrom, dateTo, label) {
-        return this.drill("journal_items", { roles: ["default_loss"], date_from: dateFrom, date_to: dateTo, label });
+        return this.drill("ledger", { account_ids: this.d.defaults.loss_account_ids, date_from: dateFrom, date_to: dateTo, label });
     }
 
     goPortfolio() {

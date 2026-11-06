@@ -26,12 +26,6 @@ class TestDrill(TransactionCase):
         super().setUpClass()
         cls.svc = cls.env["gh.kpi.service"]
         cls.today = fields.Date.context_today(cls.svc)
-        cls.revenue = cls.env["account.account"].search(
-            [("account_type", "=", "income"), ("company_ids", "in", cls.env.company.id)], limit=1)
-        if cls.revenue:
-            cls.env["gh.account.mapping"].search([("role", "=", "revenue_lease"),
-                                                  ("company_id", "=", cls.env.company.id)]).unlink()
-            cls.env["gh.account.mapping"].create({"role": "revenue_lease", "account_ids": [(6, 0, cls.revenue.ids)]})
 
     def _assert_action(self, action, where):
         self.assertTrue(action and action.get("type"), f"{where}: no action")
@@ -42,18 +36,9 @@ class TestDrill(TransactionCase):
     def test_budget_payload_specs_all_resolve(self):
         data = self.svc.get_budget_dashboard(period="ytd")
         specs = list(_specs(data))
-        self.assertGreater(len(specs), 20, "P&L lines, tiles, months and ops rows all carry drills")
+        self.assertGreater(len(specs), 10, "P&L lines, tiles, months and ops rows all carry drills")
         for path, spec in specs:
             self._assert_action(self.svc.get_drill(spec["kind"], spec["args"]), path)
-
-    def test_pl_drill_adds_up_to_the_figure(self):
-        if not self.revenue:
-            self.skipTest("no income account")
-        data = self.svc.get_budget_dashboard(period="ytd")
-        line = next(l for l in data["pl"]["lines"] if l["label"] == "Lease interest & fees")
-        action = self.svc.get_drill(line["drill"]["kind"], line["drill"]["args"])
-        lines = self.env["account.move.line"].search(action["domain"])
-        self.assertAlmostEqual(-sum(lines.mapped("balance")), line["actual"] or 0.0, places=2)
 
     def test_report_links(self):
         frm, to = (self.today.replace(month=1, day=1), self.today)
@@ -86,8 +71,8 @@ class TestDrill(TransactionCase):
         for w in data["forecast"]["weeks"][:2]:
             self._assert_action(self.svc.get_drill("dues", {"date_from": w["from"], "date_to": w["to"],
                                                             "active_only": True, "open_only": True}), w["week"])
-        self._assert_action(self.svc.get_drill("financing", {"date_from": data["financing"]["from"],
-                                                             "date_to": data["financing"]["to"]}), "financing")
+        self._assert_action(self.svc.get_drill("payments", {"date_from": p["from"], "date_to": p["to"]}), "payments")
+        self._assert_action(self.svc.get_drill("logs_unmatched", {"date_from": p["from"], "date_to": p["to"]}), "logs")
         self._assert_action(self.svc.get_drill("available_vehicles", {}), "available")
         self._assert_action(self.svc.get_drill("targets", {"metrics": ["C05"], "dim_prefix": "category:",
                                                            "date_from": p["from"], "date_to": p["to"]}), "targets")

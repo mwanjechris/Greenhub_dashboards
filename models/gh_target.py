@@ -10,17 +10,15 @@ from dateutil.relativedelta import relativedelta
 from odoo import _, api, fields, models
 from odoo.exceptions import UserError, ValidationError
 
-from .gh_mapping import ACCOUNT_ROLES, PAYMENT_CATEGORIES
+from .gh_mapping import PAYMENT_CATEGORIES
 
 # metric code -> (label, allowed dimension prefix or None, direction)
 TARGET_METRICS = {
-    "PL": ("P&L line budget (UGX)", "role", "up"),
     "C05": ("Cash collections target by category (UGX)", "category", "up"),
     "B07": ("Active portfolio at period end (contracts)", None, "up"),
     "B08": ("New riders onboarded, first-time (count)", None, "up"),
     "B09": ("Fleet deployed at period end, by product group (vehicles)", "group", "up"),
     "B10": ("Default loss (UGX)", None, "down"),
-    "B11": ("Financing costs (UGX)", None, "down"),
 }
 
 
@@ -149,7 +147,6 @@ class GhTargetImportWizard(models.TransientModel):
     def _valid_dims(self):
         groups = {g.name.lower(): g.id for g in self.env["gh.product.group"].sudo().search([])}
         return {
-            "role": {k for k, _l in ACCOUNT_ROLES},
             "category": {k for k, _l in PAYMENT_CATEGORIES},
             "group": groups,
         }
@@ -249,7 +246,6 @@ class GhTargetImportWizard(models.TransientModel):
         year = fields.Date.today().year
         group = self.env["gh.product.group"].sudo().search([], limit=1)
         ws.append(["C05", f"{year}-01", "lease", 0])
-        ws.append(["PL", f"{year}-01", "revenue_lease", 0])
         ws.append(["B07", f"{year}-01", "", 0])
         ws.append(["B09", f"{year}-01", group.name or "Zembo", 0])
         help_ws = wb.create_sheet("codes")
@@ -257,7 +253,7 @@ class GhTargetImportWizard(models.TransientModel):
         for code, (label, prefix, _d) in TARGET_METRICS.items():
             help_ws.append([code, label, prefix or ""])
         help_ws.append([])
-        help_ws.append(["role values", ", ".join(k for k, _l in ACCOUNT_ROLES)])
+        help_ws.append(["P&L budgets", "kept in Odoo: Accounting > Reporting > Profit and Loss > Budget"])
         help_ws.append(["category values", ", ".join(k for k, _l in PAYMENT_CATEGORIES)])
         help_ws.append(["group values", ", ".join(self.env["gh.product.group"].sudo().search([]).mapped("name"))])
         buf = io.BytesIO()
@@ -265,29 +261,3 @@ class GhTargetImportWizard(models.TransientModel):
         self.template = base64.b64encode(buf.getvalue())
         return {"type": "ir.actions.act_window", "res_model": self._name, "res_id": self.id,
                 "view_mode": "form", "target": "new"}
-
-
-class GhFinancingFacility(models.Model):
-    _name = "gh.financing.facility"
-    _description = "Green Hub lender facility"
-
-    name = fields.Char(required=True)
-    lender_id = fields.Many2one("res.partner", required=True)
-    currency_id = fields.Many2one("res.currency", required=True, default=lambda self: self.env.company.currency_id)
-    company_id = fields.Many2one("res.company", default=lambda self: self.env.company, required=True)
-    schedule_ids = fields.One2many("gh.financing.schedule", "facility_id")
-
-
-class GhFinancingSchedule(models.Model):
-    _name = "gh.financing.schedule"
-    _description = "Green Hub lender repayment line"
-    _order = "due_date"
-
-    facility_id = fields.Many2one("gh.financing.facility", required=True, ondelete="cascade")
-    currency_id = fields.Many2one(related="facility_id.currency_id")
-    due_date = fields.Date(required=True)
-    principal = fields.Monetary()
-    interest = fields.Monetary()
-    fees = fields.Monetary()
-    paid_date = fields.Date()
-    paid_amount = fields.Monetary()

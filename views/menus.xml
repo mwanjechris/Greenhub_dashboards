@@ -23,14 +23,10 @@
         action="action_gh_payment_category_rule" sequence="31"/>
     <menuitem id="menu_gh_config_exit_rules" name="Exit types" parent="menu_gh_config"
         action="action_gh_exit_type_rule" sequence="32"/>
-    <menuitem id="menu_gh_config_accounts" name="Account mapping" parent="menu_gh_config"
-        action="action_gh_account_mapping" sequence="33"/>
-    <menuitem id="menu_gh_config_targets" name="Budget &amp; target versions" parent="menu_gh_config"
+    <menuitem id="menu_gh_config_targets" name="Operational target versions" parent="menu_gh_config"
         action="action_gh_kpi_target_version" sequence="40"/>
     <menuitem id="menu_gh_config_import" name="Import targets" parent="menu_gh_config"
         action="action_gh_target_import_wizard" sequence="41"/>
-    <menuitem id="menu_gh_config_financing" name="Lender facilities" parent="menu_gh_config"
-        action="action_gh_financing_facility" sequence="45"/>
     <menuitem id="menu_gh_config_snapshots" name="KPI snapshots" parent="menu_gh_config"
         action="action_gh_kpi_snapshot" sequence="50"/>
     <menuitem id="menu_gh_config_backfill" name="History backfill" parent="menu_gh_config"

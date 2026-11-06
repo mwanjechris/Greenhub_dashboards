@@ -6,7 +6,7 @@
     "category": "Productivity",
     "version": "19.0.1.0.0",
     "license": "LGPL-3",
-    "depends": ["greenhub", "fleet", "account", "mail"],
+    "depends": ["greenhub", "fleet", "account", "account_reports", "mail"],
     # Explicit installs only: the Green Hub server is shared by several tenants.
     "auto_install": False,
     "data": [

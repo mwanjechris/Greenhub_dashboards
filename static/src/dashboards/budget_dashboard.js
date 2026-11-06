@@ -9,11 +9,12 @@ export class BudgetDashboard extends GhDashboardBase {
     method = "get_budget_dashboard";
 
     initialState() {
-        return { versionId: false, period: "ytd", through: false };
+        return { versionId: false, budgetId: false, period: "ytd", through: false };
     }
 
     params() {
-        return { version_id: this.state.versionId || false, period: this.state.period, through: this.state.through || false };
+        return { version_id: this.state.versionId || false, budget_id: this.state.budgetId || false,
+                 period: this.state.period, through: this.state.through || false };
     }
 
     onThrough(ev) {
@@ -32,13 +33,19 @@ export class BudgetDashboard extends GhDashboardBase {
     tile(code, label, t, unit = "money") {
         const v = t.var || {};
         return { code, label, actual: t.actual, budget: t.budget, v, pill: this.variancePill(v, t.budget, t.actual), unit,
-                 drill: t.drill, plan_drill: t.plan_drill };
+                 drill: t.drill, plan_drill: t.plan_drill, fallback: t.fallback };
     }
 
     get finTiles() {
-        const t = this.d.pl.tiles;
-        return [this.tile("B03", "Revenue", t.revenue), this.tile("B04", "Expenses", t.expenses),
-                this.tile("B05", "EBITDA", t.ebitda), this.tile("B11", "Financing costs", t.financing)];
+        return this.d.pl.tiles.map((t) => this.tile(t.code, t.label, t));
+    }
+
+    get heroTile() {
+        if (!this.ok("pl")) {
+            return null;
+        }
+        const tiles = this.finTiles;
+        return tiles.find((t) => t.code === "B05") || tiles[0] || null;
     }
 
     get opsTiles() {
@@ -82,7 +89,7 @@ export class BudgetDashboard extends GhDashboardBase {
     }
 
     get hasActuals() {
-        return this.ok("pl") && this.d.pl.mapped_roles.length > 0;
+        return this.ok("pl") && this.d.pl.lines.length > 0;
     }
 
     outlookWidth(v) {

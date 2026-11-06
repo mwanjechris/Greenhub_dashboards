@@ -13,15 +13,9 @@ access_gh_payment_category_rule_user,gh.payment.category.rule user,model_gh_paym
 access_gh_payment_category_rule_manager,gh.payment.category.rule manager,model_gh_payment_category_rule,group_gh_dashboard_manager,1,1,1,1
 access_gh_exit_type_rule_user,gh.exit.type.rule user,model_gh_exit_type_rule,group_gh_dashboard_user,1,0,0,0
 access_gh_exit_type_rule_manager,gh.exit.type.rule manager,model_gh_exit_type_rule,group_gh_dashboard_manager,1,1,1,1
-access_gh_account_mapping_user,gh.account.mapping user,model_gh_account_mapping,group_gh_dashboard_user,1,0,0,0
-access_gh_account_mapping_manager,gh.account.mapping manager,model_gh_account_mapping,group_gh_dashboard_manager,1,1,1,1
 access_gh_kpi_target_version_user,gh.kpi.target.version user,model_gh_kpi_target_version,group_gh_dashboard_user,1,0,0,0
 access_gh_kpi_target_version_manager,gh.kpi.target.version manager,model_gh_kpi_target_version,group_gh_dashboard_manager,1,1,1,1
 access_gh_kpi_target_user,gh.kpi.target user,model_gh_kpi_target,group_gh_dashboard_user,1,0,0,0
 access_gh_kpi_target_manager,gh.kpi.target manager,model_gh_kpi_target,group_gh_dashboard_manager,1,1,1,1
 access_gh_target_import_wizard_manager,gh.target.import.wizard manager,model_gh_target_import_wizard,group_gh_dashboard_manager,1,1,1,1
 access_gh_backfill_wizard_manager,gh.backfill.wizard manager,model_gh_backfill_wizard,group_gh_dashboard_manager,1,1,1,1
-access_gh_financing_facility_user,gh.financing.facility user,model_gh_financing_facility,group_gh_dashboard_user,1,0,0,0
-access_gh_financing_facility_manager,gh.financing.facility manager,model_gh_financing_facility,group_gh_dashboard_manager,1,1,1,1
-access_gh_financing_schedule_user,gh.financing.schedule user,model_gh_financing_schedule,group_gh_dashboard_user,1,0,0,0
-access_gh_financing_schedule_manager,gh.financing.schedule manager,model_gh_financing_schedule,group_gh_dashboard_manager,1,1,1,1

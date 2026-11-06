@@ -125,27 +125,55 @@
           </table>
         </div>
         <div class="gh-mcard" t-if="ok('financing')"><span class="kc">C15 · C16</span>
-          <div class="gh-mhead slate">Collections vs financing repayments</div>
+          <div class="gh-mhead slate">Collections vs lender repayments · last month</div>
           <div class="gh-mbody">
+            <div class="wf"><div class="wf-l"><span>Instalment cash collected</span><span class="lnk" t-on-click="() => this.drill('receipts', {date_from: d.financing.from, date_to: d.financing.to, instalment_only: true, label: 'Instalment receipts, last month'})" t-esc="fmtMoney(d.financing.instalment_cash)"/></div><div class="wf-b"><i style="width:100%;background:var(--gh-green)"/></div></div>
             <t t-if="!d.financing.has_data">
-              <div class="empty"><b>Awaiting lender schedules</b>Load facilities and repayment schedules under Configuration › Lender facilities. Foreign-currency obligations convert at the Odoo rate for the period.</div>
-              <div style="margin-top:16px;opacity:.55">
-                <div class="wf"><div class="wf-l"><span>Instalment cash collected (last month)</span><span class="lnk" t-on-click="() => this.drill('receipts', {date_from: d.financing.from, date_to: d.financing.to, instalment_only: true, label: 'Instalment receipts, last month'})" t-esc="fmtMoney(d.financing.instalment_cash)"/></div><div class="wf-b"><i style="width:100%;background:var(--gh-green)"/></div></div>
-                <div class="wf"><div class="wf-l"><span>Debt service due</span><span class="lnk" t-on-click="() => this.drill('financing', {date_from: d.financing.from, date_to: d.financing.to})">— (load schedules)</span></div><div class="wf-b"><i style="width:0"/></div></div>
-              </div>
+              <div class="empty"><b>Pick the lender loan accounts</b>Settings › Ledgers: the loan liability accounts (e.g. Nexus Green UGX Loan) and the interest accounts. Repayments are read from posted journal items.</div>
             </t>
             <t t-else="">
-              <div class="wf"><div class="wf-l"><span>Instalment cash collected (last month)</span><span class="lnk" t-on-click="() => this.drill('receipts', {date_from: d.financing.from, date_to: d.financing.to, instalment_only: true, label: 'Instalment receipts, last month'})" t-esc="fmtMoney(d.financing.instalment_cash)"/></div><div class="wf-b"><i style="width:100%;background:var(--gh-green)"/></div></div>
-              <t t-foreach="d.financing.by_lender" t-as="l" t-key="l.lender">
-                <div class="wf"><div class="wf-l"><span>Debt service · <t t-esc="l.lender"/></span><span class="lnk" t-on-click="() => this.drill('financing', {date_from: d.financing.from, date_to: d.financing.to, lender: l.lender, label: 'Debt service · ' + l.lender})" t-esc="fmtMoney(l.due)"/></div>
-                  <div class="wf-b"><i t-att-style="'width:' + Math.min(100, 100 * l.due / Math.max(d.financing.instalment_cash, 1)) + '%;background:var(--gh-red)'"/></div></div>
+              <t t-foreach="d.financing.by_lender" t-as="l" t-key="l.account_id">
+                <div class="wf"><div class="wf-l"><span>Principal repaid · <t t-esc="l.lender"/></span><span class="lnk" t-on-click="() => this.drill('ledger', {account_ids: [l.account_id], date_from: d.financing.from, date_to: d.financing.to, side: 'debit', label: l.lender})" t-esc="fmtMoney(l.paid)"/></div>
+                  <div class="wf-b"><i t-att-style="'width:' + Math.min(100, 100 * l.paid / Math.max(d.financing.instalment_cash, 1)) + '%;background:var(--gh-red)'"/></div></div>
               </t>
+              <div class="wf"><div class="wf-l"><span>Interest &amp; fees</span><span class="lnk" t-on-click="() => this.drill('ledger', {account_ids: d.financing.interest_account_ids, date_from: d.financing.from, date_to: d.financing.to, side: 'debit', label: 'Lender interest and fees'})" t-esc="fmtMoney(d.financing.interest)"/></div>
+                <div class="wf-b"><i t-att-style="'width:' + Math.min(100, 100 * d.financing.interest / Math.max(d.financing.instalment_cash, 1)) + '%;background:var(--gh-amber)'"/></div></div>
             </t>
             <div class="gh-fill"/>
-            <div class="tot"><div><div class="tot-l">Debt-service collection coverage</div><div class="tot-c">Cash coverage ratio. This is not a formal DSCR</div></div>
-              <div class="tot-n lnk" title="Open the lender repayment lines" t-on-click="() => this.drill('financing', {date_from: d.financing.from, date_to: d.financing.to})" t-att-style="d.financing.coverage ? '' : 'color:var(--gh-ink-soft)'"><t t-esc="d.financing.coverage ?? '—'"/>×</div></div>
+            <div class="tot"><div><div class="tot-l">Debt-service collection coverage</div><div class="tot-c">Instalment cash ÷ repayments posted in Odoo. Cash ratio, not a formal DSCR
+              <span class="gh-rpt" style="padding:0 6px;margin-left:4px" t-on-click="() => this.report('gl', d.financing.from, d.financing.to)">General Ledger ↗</span></div></div>
+              <div class="tot-n" t-att-style="d.financing.coverage ? '' : 'color:var(--gh-ink-soft)'"><t t-esc="d.financing.coverage ?? '—'"/>×</div></div>
           </div>
         </div>
+      </div>
+
+      <div class="gh-panel" t-if="ok('logs_vs_payments')"><span class="kc">C01 · Odoo</span>
+        <t t-set="lp" t-value="d.logs_vs_payments"/>
+        <div class="gh-ptitle"><h3 class="gh-h3">GreenHub payment logs vs Odoo payments</h3>
+          <span class="gh-rpts"><span style="font:400 12px var(--gh-sans);color:var(--gh-ink-soft)"><t t-esc="periodTitle"/> · same dates, company currency</span>
+            <span class="gh-rpt" t-on-click="() => this.drill('payments', {date_from: lp.from, date_to: lp.to})">Customer payments ↗</span></span></div>
+        <div class="gh-pcap">Logs are the GreenHub app's successful inbound transactions (what the tiles above count). Odoo payments are the posted customer payments in Accounting. Matched = the log points at that Odoo payment</div>
+        <table class="t">
+          <thead><tr><th/><th class="r">GreenHub logs</th><th class="r">Amount</th><th class="r">Odoo payments</th><th class="r">Amount</th></tr></thead>
+          <tbody>
+            <tr><td><b>Total</b></td>
+              <td class="r lnk" t-on-click="() => this.open('payment.log', lp.logs.domain, 'GreenHub payment logs')" t-esc="lp.logs.count"/>
+              <td class="r lnk" t-on-click="() => this.open('payment.log', lp.logs.domain, 'GreenHub payment logs')" t-esc="fmtInt(lp.logs.amount)"/>
+              <td class="r lnk" t-on-click="() => this.drill('payments', {date_from: lp.from, date_to: lp.to})" t-esc="lp.payments.count"/>
+              <td class="r lnk" t-on-click="() => this.drill('payments', {date_from: lp.from, date_to: lp.to})" t-esc="fmtInt(lp.payments.amount)"/></tr>
+            <tr><td>Matched</td>
+              <td class="r lnk" t-on-click="() => this.drill('logs_unmatched', {date_from: lp.from, date_to: lp.to, matched: true})" t-esc="lp.matched.logs"/>
+              <td class="r lnk" t-on-click="() => this.drill('logs_unmatched', {date_from: lp.from, date_to: lp.to, matched: true})" t-esc="fmtInt(lp.matched.logs_amount)"/>
+              <td class="r lnk" t-on-click="() => this.drill('payments', {date_from: lp.from, date_to: lp.to, matched: true, label: 'Odoo payments with a GreenHub log'})" t-esc="lp.matched.payments"/>
+              <td class="r lnk" t-on-click="() => this.drill('payments', {date_from: lp.from, date_to: lp.to, matched: true, label: 'Odoo payments with a GreenHub log'})" t-esc="fmtInt(lp.matched.payments_amount)"/></tr>
+            <tr><td>Only on one side</td>
+              <td class="r lnk" t-on-click="() => this.drill('logs_unmatched', {date_from: lp.from, date_to: lp.to})" t-esc="lp.logs_only.count"/>
+              <td class="r lnk" t-on-click="() => this.drill('logs_unmatched', {date_from: lp.from, date_to: lp.to})" t-esc="fmtInt(lp.logs_only.amount)"/>
+              <td class="r lnk" t-on-click="() => this.drill('payments', {date_from: lp.from, date_to: lp.to, matched: false, label: 'Odoo payments without a GreenHub log'})" t-esc="lp.payments_only.count"/>
+              <td class="r lnk" t-on-click="() => this.drill('payments', {date_from: lp.from, date_to: lp.to, matched: false, label: 'Odoo payments without a GreenHub log'})" t-esc="fmtInt(lp.payments_only.amount)"/></tr>
+            <tr class="total"><td>Difference (logs − Odoo)</td><td/><td class="r" colspan="3"><span t-att-class="'st ' + (Math.abs(lp.difference) &lt; 1 ? 'fav' : 'wrn')"><t t-if="Math.abs(lp.difference) &lt; 1">✓ </t><t t-esc="fmtInt(lp.difference)"/></span></td></tr>
+          </tbody>
+        </table>
       </div>
       </t>
 
@@ -199,7 +227,7 @@
         <div style="display:flex;gap:28px;flex-wrap:wrap">
           <div><div class="gh-tile-l" style="min-height:0">Default rate</div><div class="gh-tile-n crit lnk" style="font-size:24px" t-on-click="() => this.open('rider.contract', d.defaults.rate.domain, 'In default')" t-esc="fmtPct(d.defaults.rate.value)"/></div>
           <div><div class="gh-tile-l" style="min-height:0">Arrears in default</div><div class="gh-tile-n lnk" style="font-size:24px" t-on-click="() => this.open('rider.contract', d.defaults.rate.domain, 'In default')" t-esc="fmtInt(d.defaults.arrears_in_default)"/></div>
-          <div><div class="gh-tile-l" style="min-height:0">Losses YTD <span class="gh-rpt" style="padding:0 6px" t-on-click="() => this.report('gl', d.defaults.year + '-01-01', d.as_of)">GL ↗</span></div><div class="gh-tile-n lnk" style="font-size:24px" t-on-click="() => this.lossItems(d.defaults.year + '-01-01', d.as_of, 'Default losses YTD')" t-esc="d.defaults.losses_ytd !== null ? fmtMoney(d.defaults.losses_ytd) : '—'"/></div>
+          <div><div class="gh-tile-l" style="min-height:0">Losses YTD <span class="gh-rpt" style="padding:0 6px" t-on-click="() => this.report('gl', d.defaults.ytd_from, d.defaults.ytd_to)">GL ↗</span></div><div class="gh-tile-n lnk" style="font-size:24px" t-on-click="() => this.lossItems(d.defaults.ytd_from, d.defaults.ytd_to, 'Default losses YTD')" t-esc="d.defaults.losses_ytd !== null ? fmtMoney(d.defaults.losses_ytd) : '—'"/></div>
           <div><div class="gh-tile-l" style="min-height:0">Loss / revenue (last month)</div><div class="gh-tile-n lnk" style="font-size:24px" t-on-click="() => this.report('pl', d.financing.from, d.financing.to)" title="Odoo Profit and Loss, last month"
                t-esc="d.defaults.monthly.length &gt; 1 and d.defaults.monthly[d.defaults.monthly.length - 2].loss_pct !== null ? fmtPct(d.defaults.monthly[d.defaults.monthly.length - 2].loss_pct) : '—'"/></div>
         </div>

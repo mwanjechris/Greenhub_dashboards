@@ -4,7 +4,8 @@ The dashboards call ``get_drill(kind, args)`` when a figure is clicked. Each kin
 rebuilds the exact records the figure was computed from and returns a window
 action on them, so the list a user lands on always adds up to the number they
 clicked. Figures that come from the general ledger also offer the matching
-Odoo accounting report (``report`` kind) for the same dates.
+Odoo accounting report (``report`` kind) for the same dates, and P&L figures
+open Odoo's own audit of the report cell (``pl_cell``).
 """
 from datetime import date, timedelta
 
@@ -58,22 +59,25 @@ class GhKpiServiceDrill(models.AbstractModel):
             raise UserError(_("Unknown drill-through: %s", kind))
         return method(**args)
 
-    # ------------------------------------------------------------------ accounting
-    def _role_accounts(self, roles):
-        accounts = self.env["account.account"]
-        for role in roles or []:
-            accounts |= self.env["gh.account.mapping"]._accounts(role)
-        return accounts
-
-    def _drill_report(self, report="pl", date_from=None, date_to=None, label=None):
-        """Odoo's own accounting report for the same dates (Enterprise); journal items otherwise."""
+    # ------------------------------------------------------------------ accounting (all computed by Odoo)
+    def _drill_report(self, report="pl", date_from=None, date_to=None, label=None, budget_id=None):
+        """Odoo's own accounting report for the figure's dates (and the dashboard's budget, for the P&L)."""
         xmlid, title = REPORTS[report]
         date_from, date_to = self._d(date_from), self._d(date_to) or self._today()
         if self.env.ref(xmlid, raise_if_not_found=False):
             action = self.env["ir.actions.actions"]._for_xml_id(xmlid)
-            action["params"] = dict(action.get("params") or {}, ignore_session=True, options={"date": {
+            options = {"date": {
                 "date_from": fields.Date.to_string(date_from or date_to.replace(month=1, day=1)),
-                "date_to": fields.Date.to_string(date_to), "filter": "custom", "mode": "range"}})
+                "date_to": fields.Date.to_string(date_to), "filter": "custom", "mode": "range"}}
+            if report == "pl":
+                config = self.env["gh.dashboard.config"]._get_config()
+                pl = config._pl_report()
+                if pl:
+                    options["selected_variant_id"] = pl.id
+                    action.setdefault("context", {})
+                if budget_id:
+                    options["budgets"] = [{"id": budget_id, "selected": True}]
+            action["params"] = dict(action.get("params") or {}, ignore_session=True, options=options)
             return action
         domain = [("parent_state", "=", "posted"), ("company_id", "=", self.env.company.id), ("date", "<=", date_to)]
         if date_from and report != "bs":
@@ -81,22 +85,56 @@ class GhKpiServiceDrill(models.AbstractModel):
         lines = self.env["account.move.line"].search(domain)
         return self._window_action("account.move.line", lines.ids, label or title)
 
-    def _drill_journal_items(self, roles=(), date_from=None, date_to=None, label=None):
-        """Posted journal items on the ledger accounts mapped to the given P&L roles."""
-        accounts = self._role_accounts(roles)
-        if not accounts:
-            return self._mapping_action(label)
-        lines = self.env["account.move.line"].search([
-            ("account_id", "in", accounts.ids), ("parent_state", "=", "posted"), ("company_id", "=", self.env.company.id),
-            ("date", ">=", self._d(date_from)), ("date", "<=", self._d(date_to))])
-        action = self._window_action("account.move.line", lines.ids, _("Journal items · %s", label or ", ".join(roles)))
+    def _drill_pl_cell(self, report_line_id=None, date_from=None, date_to=None, label=None):
+        """Exactly what clicking this cell in Odoo's P&L opens (Odoo's audit of the report line)."""
+        line = self.env["account.report.line"].browse(int(report_line_id))
+        report = line.report_id
+        options = self._pl_options(report, self._d(date_from), self._d(date_to))
+        rows = report._get_lines(options)
+        row = next((r for r in rows if report._get_model_info_from_id(r["id"]) == ("account.report.line", line.id)), None)
+        if not row:
+            raise UserError(_("Line %s not found in %s.", line.name, report.display_name))
+        col = row["columns"][0]
+        action = report.action_audit_cell(options, {
+            "report_line_id": line.id, "calling_line_dict_id": row["id"],
+            "expression_label": col.get("expression_label") or "balance", "column_group_key": col["column_group_key"]})
+        if action.get("type") == "ir.actions.act_window":
+            action["name"] = _("%(line)s · %(f)s – %(t)s", line=label or line.name, f=date_from, t=date_to)
+            if not any(v[1] == "form" for v in action.get("views", [])):
+                action["views"] = list(action.get("views") or [[False, "list"]]) + [[False, "form"]]
+        return action
+
+    def _drill_ledger(self, account_ids=(), date_from=None, date_to=None, label=None, side="balance"):
+        """Posted journal items on ledger accounts picked in settings (default losses, lender loans)."""
+        if not account_ids:
+            action = self.env["ir.actions.actions"]._for_xml_id("greenhub_dashboards.action_gh_dashboard_config")
+            action["name"] = _("Settings: pick the ledger accounts for %s", label or _("this figure"))
+            return action
+        domain = [("account_id", "in", list(account_ids)), ("parent_state", "=", "posted"),
+                  ("company_id", "=", self.env.company.id),
+                  ("date", ">=", self._d(date_from)), ("date", "<=", self._d(date_to))]
+        if side == "debit":
+            domain.append(("debit", ">", 0))
+        lines = self.env["account.move.line"].search(domain)
+        action = self._window_action("account.move.line", lines.ids, _("Journal items · %s", label or ""))
         action["context"].update(group_by=["account_id"])
         return action
 
-    def _mapping_action(self, label=None):
-        action = self.env["ir.actions.actions"]._for_xml_id("greenhub_dashboards.action_gh_account_mapping")
-        action["name"] = _("Account mapping (%s not mapped)", label) if label else action["name"]
-        return action
+    def _drill_payments(self, date_from=None, date_to=None, matched=None, label=None):
+        """Odoo customer payments (Accounting) for the side-by-side with GreenHub payment logs."""
+        payments = self._odoo_payments(self._d(date_from), self._d(date_to))
+        if matched is not None:
+            linked = set(self._logs(self._d(date_from), self._d(date_to)).mapped("payment_id").ids)
+            payments = payments.filtered(lambda p: (p.id in linked) == bool(matched))
+        return self._window_action("account.payment", payments.ids, label or _("Customer payments (Odoo)"))
+
+    def _drill_logs_unmatched(self, date_from=None, date_to=None, label=None, matched=False):
+        """GreenHub logs with (matched=True) or without an Odoo payment in the same dates."""
+        logs = self._logs(self._d(date_from), self._d(date_to))
+        payments = set(self._odoo_payments(self._d(date_from), self._d(date_to)).ids)
+        logs = logs.filtered(lambda l: (l.payment_id.id in payments) == bool(matched))
+        return self._window_action("payment.log", logs.ids, label or (
+            _("Payment logs matched to an Odoo payment") if matched else _("Payment logs without an Odoo payment")))
 
     # ------------------------------------------------------------------ targets / plans
     def _drill_targets(self, version_id=None, metrics=(), dim_keys=None, dim_prefix=None, date_from=None, date_to=None,
@@ -218,16 +256,6 @@ class GhKpiServiceDrill(models.AbstractModel):
         ids = snaps.mapped("contract_id").ids or self._contracts_of_group(
             product_group_id or None, [("state", "in", ACTIVE_STATES)]).ids
         return self._window_action("rider.contract", ids, label or _("Contracts in the rate"))
-
-    def _drill_financing(self, date_from=None, date_to=None, lender=None, label=None):
-        lines = self.env["gh.financing.schedule"].search([
-            ("due_date", ">=", self._d(date_from)), ("due_date", "<=", self._d(date_to))])
-        if lender:
-            lines = lines.filtered(lambda l: l.facility_id.lender_id.display_name == lender)
-        if not lines:
-            return self.env["ir.actions.actions"]._for_xml_id("greenhub_dashboards.action_gh_financing_facility")
-        return self._window_action("gh.financing.schedule", lines.ids, label or _("Debt service due"),
-                                   views=[[self._drill_view("greenhub_dashboards.view_gh_financing_schedule_drill_list"), "list"]])
 
     # ------------------------------------------------------------------ portfolio
     def _drill_contracts(self, on=None, keys=(), label=None, product_group_id=None):

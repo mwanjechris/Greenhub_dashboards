@@ -219,42 +219,6 @@ class GhExitTypeRule(models.Model):
         return "other"
 
 
-ACCOUNT_ROLES = [
-    ("revenue_lease", "Revenue: lease interest and fees"),
-    ("revenue_rental", "Revenue: rental"),
-    ("revenue_monitoring", "Revenue: monitoring fees"),
-    ("revenue_other", "Revenue: swaps, spare parts and other"),
-    ("cost_of_sales", "Cost of sales"),
-    ("opex_staff", "Operating expenses: staff"),
-    ("opex_fleet", "Operating expenses: fleet operations and maintenance"),
-    ("opex_admin", "Operating expenses: admin and other"),
-    ("default_loss", "Default losses (write-offs)"),
-    ("financing_interest", "Financing costs: interest"),
-    ("financing_fees", "Financing costs: fees"),
-]
-
-
-class GhAccountMapping(models.Model):
-    """General ledger accounts behind each P&L line and the default-loss KPI.
-
-    Replaces the spreadsheet's match on account codes and on 'default' in labels.
-    """
-
-    _name = "gh.account.mapping"
-    _description = "Green Hub account mapping"
-    _order = "role"
-
-    role = fields.Selection(ACCOUNT_ROLES, required=True)
-    account_ids = fields.Many2many("account.account", string="Accounts")
-    company_id = fields.Many2one("res.company", default=lambda self: self.env.company, required=True)
-
-    _role_uniq = models.Constraint("unique(company_id, role)", "Each role is mapped once per company.")
-
-    @api.model
-    def _accounts(self, role):
-        return self.sudo().search([("role", "=", role), ("company_id", "=", self.env.company.id)]).account_ids
-
-
 class GhExitTypeRuleSuggest(models.Model):
     _inherit = "gh.exit.type.rule"
 

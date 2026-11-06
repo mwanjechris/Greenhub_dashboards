@@ -108,21 +108,10 @@ class GhKpiServicePortfolio(models.AbstractModel):
         return late
 
     # ------------------------------------------------------------ default block (shared with Collections)
-    def _account_amount(self, role, date_from, date_to, sign=1):
-        accounts = self.env["gh.account.mapping"]._accounts(role)
-        if not accounts:
-            return None
-        rows = self.env["account.move.line"].sudo()._read_group(
-            [("account_id", "in", accounts.ids), ("parent_state", "=", "posted"),
-             ("date", ">=", date_from), ("date", "<=", date_to), ("company_id", "=", self.env.company.id)],
-            [], ["balance:sum"])
-        return sign * (rows[0][0] or 0.0)
-
     def _revenue(self, date_from, date_to):
-        parts = [self._account_amount(role, date_from, date_to, -1)
-                 for role in ("revenue_lease", "revenue_rental", "revenue_monitoring", "revenue_other")]
-        parts = [p for p in parts if p is not None]
-        return sum(parts) if parts else None
+        """Revenue as Odoo's P&L reports it (the Revenue line), for loss / revenue %."""
+        lines, _r, _o = self._pl_read(date_from, date_to)
+        return lines["REV"]["actual"] if "REV" in lines else None
 
     def _default_block(self, on, rows, year):
         config = self.env["gh.dashboard.config"]._get_config()
@@ -130,14 +119,15 @@ class GhKpiServicePortfolio(models.AbstractModel):
         defaults = [r for r in rows if r["in_default"]]
         year_start = date(year, 1, 1)
         through = min(on, date(year, 12, 31))
-        losses_ytd = self._account_amount("default_loss", year_start, through)
+        loss_accounts = config.default_loss_account_ids
+        losses_ytd = self._ledger_sum(loss_accounts, year_start, through)
         months_elapsed = (through - year_start).days / 30.4375 if through >= year_start else 0
         monthly = []
         for end in month_ends(year_start, through + timedelta(days=31)):
             start = end.replace(day=1)
             if start > through:
                 break
-            loss = self._account_amount("default_loss", start, min(end, through))
+            loss = self._ledger_sum(loss_accounts, start, min(end, through))
             revenue = self._revenue(start, min(end, through))
             monthly.append({"month": start.strftime("%b"), "loss": loss, "revenue": revenue,
                             "from": fields.Date.to_string(start), "to": fields.Date.to_string(min(end, through)),
@@ -154,7 +144,8 @@ class GhKpiServicePortfolio(models.AbstractModel):
             "ytd_from": fields.Date.to_string(year_start), "ytd_to": fields.Date.to_string(through),
             "months_elapsed": round(months_elapsed, 1),
             "monthly": monthly,
-            "loss_accounts_mapped": bool(self.env["gh.account.mapping"]._accounts("default_loss")),
+            "loss_accounts_mapped": bool(loss_accounts), "loss_account_ids": loss_accounts.ids,
+            "loss_accounts": ", ".join(loss_accounts.mapped("display_name")),
         }
 
     def _repossessions(self, year, product_group_id):

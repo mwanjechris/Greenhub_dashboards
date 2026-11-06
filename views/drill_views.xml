@@ -66,21 +66,4 @@
             </list>
         </field>
     </record>
-
-    <record id="view_gh_financing_schedule_drill_list" model="ir.ui.view">
-        <field name="name">gh.financing.schedule.drill.list</field>
-        <field name="model">gh.financing.schedule</field>
-        <field name="arch" type="xml">
-            <list create="0" edit="0" delete="0">
-                <field name="facility_id"/>
-                <field name="due_date"/>
-                <field name="currency_id" column_invisible="1"/>
-                <field name="principal" sum="Total"/>
-                <field name="interest" sum="Total"/>
-                <field name="fees" sum="Total"/>
-                <field name="paid_date" optional="show"/>
-                <field name="paid_amount" sum="Total" optional="show"/>
-            </list>
-        </field>
-    </record>
 </odoo>

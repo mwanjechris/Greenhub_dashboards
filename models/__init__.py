@@ -8,3 +8,4 @@ from . import gh_kpi_collections
 from . import gh_target
 from . import gh_kpi_budget
 from . import gh_drill
+from . import gh_accounting

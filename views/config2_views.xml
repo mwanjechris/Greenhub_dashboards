@@ -33,6 +33,34 @@
                         <field name="fx_currency_id"/>
                     </group>
                 </group>
+                <separator string="Accounting: figures are read from Odoo, never computed by the dashboard"/>
+                <div class="text-muted mb-2">
+                    P&amp;L lines, budgets and EBITDA come from Odoo's Profit and Loss report and report budgets
+                    (Accounting › Reporting). Default losses and lender repayments are posted journal items on the
+                    ledgers picked here. Exchange rates are Odoo's.
+                </div>
+                <group>
+                    <group string="Profit &amp; loss">
+                        <field name="pl_report_id" options="{'no_create': True}"/>
+                        <button name="action_create_pl_variant" type="object" class="btn-secondary" colspan="2"
+                                string="Create / refresh the GreenHub P&amp;L (EBITDA) variant in Accounting"
+                                groups="greenhub_dashboards.group_gh_dashboard_manager"/>
+                        <field name="ebitda_addback_account_ids" widget="many2many_tags" options="{'no_create': True}"/>
+                        <button name="action_suggest_addback_accounts" type="object" class="btn-link" colspan="2"
+                                string="Suggest: depreciation / amortisation accounts in cost of revenue or expenses"
+                                groups="greenhub_dashboards.group_gh_dashboard_manager"/>
+                        <field name="budget_id" options="{'no_create': True}"/>
+                        <field name="forecast_budget_id" options="{'no_create': True}"/>
+                    </group>
+                    <group string="Ledgers">
+                        <field name="default_loss_account_ids" widget="many2many_tags" options="{'no_create': True}"/>
+                        <field name="loan_account_ids" widget="many2many_tags" options="{'no_create': True}"/>
+                        <field name="loan_interest_account_ids" widget="many2many_tags" options="{'no_create': True}"/>
+                        <button name="action_suggest_ledgers" type="object" class="btn-link" colspan="2"
+                                string="Suggest: bad-debt write-off and loan accounts by name"
+                                groups="greenhub_dashboards.group_gh_dashboard_manager"/>
+                    </group>
+                </group>
             </xpath>
         </field>
     </record>
@@ -89,24 +117,6 @@
         <field name="group_ids" eval="[(4, ref('group_gh_dashboard_manager'))]"/>
         <field name="state">code</field>
         <field name="code">model.action_suggest_exit_rules()</field>
-    </record>
-
-    <record id="gh_account_mapping_list" model="ir.ui.view">
-        <field name="name">gh.account.mapping.list</field>
-        <field name="model">gh.account.mapping</field>
-        <field name="arch" type="xml">
-            <list editable="bottom">
-                <field name="role"/>
-                <field name="account_ids" widget="many2many_tags"/>
-                <field name="company_id" groups="base.group_multi_company"/>
-            </list>
-        </field>
-    </record>
-    <record id="action_gh_account_mapping" model="ir.actions.act_window">
-        <field name="name">Account mapping</field>
-        <field name="res_model">gh.account.mapping</field>
-        <field name="view_mode">list</field>
-        <field name="help" type="html"><p>Which ledger accounts make up each P&amp;L line, default losses and financing costs.</p></field>
     </record>
 
     <record id="gh_target_import_wizard_form" model="ir.ui.view">
@@ -202,44 +212,6 @@
     </record>
 
     <!-- lender facilities -->
-    <record id="gh_financing_facility_form" model="ir.ui.view">
-        <field name="name">gh.financing.facility.form</field>
-        <field name="model">gh.financing.facility</field>
-        <field name="arch" type="xml">
-            <form>
-                <sheet>
-                    <group>
-                        <field name="name"/>
-                        <field name="lender_id"/>
-                        <field name="currency_id"/>
-                    </group>
-                    <field name="schedule_ids">
-                        <list editable="bottom">
-                            <field name="due_date"/>
-                            <field name="principal"/>
-                            <field name="interest"/>
-                            <field name="fees"/>
-                            <field name="paid_date"/>
-                            <field name="paid_amount"/>
-                            <field name="currency_id" column_invisible="True"/>
-                        </list>
-                    </field>
-                </sheet>
-            </form>
-        </field>
-    </record>
-    <record id="gh_financing_facility_list" model="ir.ui.view">
-        <field name="name">gh.financing.facility.list</field>
-        <field name="model">gh.financing.facility</field>
-        <field name="arch" type="xml">
-            <list><field name="name"/><field name="lender_id"/><field name="currency_id"/></list>
-        </field>
-    </record>
-    <record id="action_gh_financing_facility" model="ir.actions.act_window">
-        <field name="name">Lender facilities</field>
-        <field name="res_model">gh.financing.facility</field>
-        <field name="view_mode">list,form</field>
-    </record>
 
     <!-- history -->
     <record id="gh_backfill_wizard_form" model="ir.ui.view">

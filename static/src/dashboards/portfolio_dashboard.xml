@@ -170,9 +170,9 @@
             <div class="gh-ptitle"><h3 class="gh-h3">Monthly default losses</h3>
               <span class="gh-rpts"><span class="gh-rpt" t-on-click="() => this.report('pl', d.defaults.ytd_from, d.defaults.ytd_to)">P&amp;L ↗</span>
                 <span class="gh-rpt" t-on-click="() => this.report('gl', d.defaults.ytd_from, d.defaults.ytd_to)">GL ↗</span></span></div>
-            <div class="gh-pcap">UGX written off · label = loss as % of recognised revenue</div>
+            <div class="gh-pcap">Posted to <t t-esc="d.defaults.loss_accounts or 'the write-off ledger'"/> · label = loss as % of Revenue in Odoo's P&amp;L</div>
             <t t-if="d.defaults.loss_accounts_mapped"><GhChart kind="'bar'" config="lossChart"/></t>
-            <div class="empty" t-else=""><b>Awaiting account mapping</b>Map the write-off accounts under Configuration › Account mapping (role: Default losses).</div>
+            <div class="empty" t-else=""><b>Pick the write-off ledger</b>Settings › Ledgers › Default-loss accounts (e.g. 501002 Bad Debts Written Off).</div>
           </div>
           <div class="gh-panel" t-if="ok('repossessions')"><span class="kc">P20</span>
             <h3 class="gh-h3">Repossession → refinancing</h3>

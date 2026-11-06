@@ -174,21 +174,51 @@ class GhKpiServiceCollections(models.AbstractModel):
                 "to": fields.Date.to_string(date_to)}
 
     def _financing(self, date_from, date_to, instalment_cash):
-        lines = self.env["gh.financing.schedule"].sudo().search([("due_date", ">=", date_from), ("due_date", "<=", date_to)])
-        if not lines:
-            return {"has_data": False, "instalment_cash": instalment_cash, "from": fields.Date.to_string(date_from),
-                    "to": fields.Date.to_string(date_to)}
-        company = self.env.company
-        to_company = lambda l: l.currency_id._convert(l.principal + l.interest + l.fees, company.currency_id,
-                                                       company, l.due_date)
-        due = sum(to_company(l) for l in lines)
-        by_lender = defaultdict(float)
-        for l in lines:
-            by_lender[l.facility_id.lender_id.display_name] += to_company(l)
-        return {"has_data": True, "instalment_cash": instalment_cash, "debt_service_due": due,
-                "from": fields.Date.to_string(date_from), "to": fields.Date.to_string(date_to),
-                "coverage": round(instalment_cash / due, 2) if due else None,
-                "by_lender": [{"lender": k, "due": v} for k, v in by_lender.items()]}
+        """C15/C16 from the general ledger: principal repaid = debits on the loan accounts picked in settings,
+        interest/fees = debits on the lender interest accounts. Odoo holds the numbers; no schedule of our own."""
+        config = self.env["gh.dashboard.config"]._get_config()
+        ds = fields.Date.to_string
+        base = {"from": ds(date_from), "to": ds(date_to), "instalment_cash": instalment_cash,
+                "loan_account_ids": config.loan_account_ids.ids,
+                "interest_account_ids": config.loan_interest_account_ids.ids}
+        if not config.loan_account_ids:
+            return dict(base, has_data=False)
+        by_lender = []
+        for account in config.loan_account_ids:
+            paid = self._ledger_sum(account, date_from, date_to, "debit") or 0.0
+            by_lender.append({"lender": account.display_name, "account_id": account.id, "paid": paid})
+        principal = sum(l["paid"] for l in by_lender)
+        interest = self._ledger_sum(config.loan_interest_account_ids, date_from, date_to, "debit") or 0.0
+        service = principal + interest
+        return dict(base, has_data=True, by_lender=by_lender, principal=principal, interest=interest,
+                    debt_service_paid=service, coverage=round(instalment_cash / service, 2) if service else None)
+
+    def _odoo_payments(self, date_from, date_to):
+        return self.env["account.payment"].sudo().search([
+            ("payment_type", "=", "inbound"), ("partner_type", "=", "customer"),
+            ("state", "not in", ("draft", "canceled", "rejected")), ("company_id", "=", self.env.company.id),
+            ("date", ">=", date_from), ("date", "<=", date_to)])
+
+    def _logs_vs_payments(self, date_from, date_to):
+        """GreenHub payment logs next to Odoo customer payments for the same dates (amounts in company currency)."""
+        logs = self._logs(date_from, date_to)
+        payments = self._odoo_payments(date_from, date_to)
+        pay_ids = set(payments.ids)
+        matched_logs = logs.filtered(lambda l: l.payment_id.id in pay_ids)
+        matched_pay = payments.filtered(lambda p: p.id in set(matched_logs.mapped("payment_id").ids))
+        amount = lambda ps: sum(abs(p.amount_company_currency_signed) for p in ps)
+        logs_total = sum(logs.mapped("amount"))
+        pay_total = amount(payments)
+        return {
+            "from": fields.Date.to_string(date_from), "to": fields.Date.to_string(date_to),
+            "logs": {"count": len(logs), "amount": logs_total, "domain": [("id", "in", logs.ids)]},
+            "payments": {"count": len(payments), "amount": pay_total},
+            "matched": {"logs": len(matched_logs), "logs_amount": sum(matched_logs.mapped("amount")),
+                        "payments": len(matched_pay), "payments_amount": amount(matched_pay)},
+            "logs_only": {"count": len(logs) - len(matched_logs), "amount": logs_total - sum(matched_logs.mapped("amount"))},
+            "payments_only": {"count": len(payments) - len(matched_pay), "amount": pay_total - amount(matched_pay)},
+            "difference": logs_total - pay_total,
+        }
 
     def _target_version(self, version_id=None):
         Version = self.env["gh.kpi.target.version"].sudo()
@@ -268,6 +298,7 @@ class GhKpiServiceCollections(models.AbstractModel):
             "monthly": self._panel(lambda: {"rows": self._monthly_vs_due(on, product_group_id)}),
             "by_model": self._panel(self._by_model, last_month_end.replace(day=1), last_month_end),
             "forecast": self._panel(self._forecast, on, product_group_id),
+            "logs_vs_payments": self._panel(self._logs_vs_payments, start, end),
             "financing": self._panel(lambda: self._financing(
                 last_month_end.replace(day=1), last_month_end,
                 sum(self.env["gh.history.service"]._collected_by_contract(last_month_end.replace(day=1), last_month_end).values()))),

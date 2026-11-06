@@ -16,8 +16,11 @@ accounting reports.
 | Drill kind | Opens | Used by |
 |---|---|---|
 | `report` | Odoo P&L, General Ledger, Balance Sheet, Aged Receivable with the figure's dates (`ignore_session`, custom range) | Budget hero, P&L panel, financial tiles, revenue chart, outlook; Portfolio/Collections default losses |
-| `journal_items` | Posted journal items on the accounts mapped to the P&L roles, grouped by account | Every P&L actual (month and period), B03–B05, B11, B10, revenue bars, EBITDA YTD, default losses (YTD, monthly bars, average) |
-| `targets` | Budget / target lines summed into a plan figure (version, metric, dimension, months) | Every P&L budget, ops plans (B06–B10), C06 and category targets, outlook forecast + approved budget |
+| `pl_cell` | Odoo's own audit of a P&L report cell: exactly what clicking that figure in Accounting › Reporting › Profit and Loss opens | Every P&L actual (month and period), financial tiles, hero, revenue bars, EBITDA YTD |
+| `report` + budget | Odoo P&L (the configured variant) with the dashboard's Odoo budget switched on | Every P&L budget figure, outlook forecast + approved budget, budgets table |
+| `ledger` | Posted journal items on ledger accounts picked in settings, grouped by account | Default losses (YTD, monthly bars, average, B10), lender principal and interest |
+| `payments` / `logs_unmatched` | Odoo customer payments (all, matched, unmatched) and GreenHub logs with no Odoo payment | Logs-vs-payments panel |
+| `targets` | Operational target lines (riders, fleet, collections, default-loss limit) | Ops plans (B06–B10), C06 and category targets |
 | `snapshots` | Contract snapshot rows for one period end (arrears, risk, PAR, due, collected per contract) | Arrears and average-arrears trends, risk trend (per category), default trend, recovery table, collection-rate trend |
 | `kpi_snapshots` | Stored KPI values for one period | Unassigned e-bodas over time (vehicle lists are not snapshotted) |
 | `growth` | Riders in opening / first-time / returning / exits / closing / retained for a period | Growth table cells and bars, retention chart and tiles, gender-age trend |
@@ -28,7 +31,6 @@ accounting reports.
 | `available_vehicles` | Bikes counted as available | C09 sub-figure |
 | `fleet_cell` | Vehicles in a vehicle-distribution row, column or cell | Matrix rows, totals, B09 |
 | `contracts` | Live portfolio rows matching flags | B07, late-fee sub-figure on P02 |
-| `financing` | Lender repayment lines (or the facilities screen when none are loaded) | C15/C16 card |
 
 Figures that stay non-clickable on purpose: percentages that are pure ratios of
 two clickable figures shown next to them (shares, Var %, performance %), and

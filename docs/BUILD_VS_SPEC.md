@@ -12,7 +12,7 @@ Status key: **Done** = built and tested · **Partial** = built with a stated gap
 |---|---|---|
 | Riders & Customers | Same header, filter bar, scorecard clusters, tables, charts and order | As-of is a list of snapshot week ends, not a free date picker. X-axis shows dates, not week numbers. |
 | Portfolio & Credit Risk | Same, incl. 100% stacked risk/PAR bars, shared default block, recovery table, three trend charts | Risk rule text is generated from settings, so wording differs slightly. |
-| Collections & Payments | Same, incl. category-vs-target table, financing card (empty state), forecast, compact default strip | Currency toggle shows only when a lender currency is set. |
+| Collections & Payments | Same, incl. category-vs-target table, lender-repayment card (from the GL), GreenHub logs vs Odoo payments side by side, forecast, compact default strip | Currency toggle shows only when a lender currency is set. |
 | Budget & Performance | Same, incl. version selector, P&L table, outlook card, ops KPIs, versions table with Import | Hero and P&L show "—" until ledger accounts are mapped (by design: never a fake 0). |
 
 Design rules kept: closed `gh-` palette copied from Nexus, IBM Plex bundled locally (no `@import`, no CDN),
@@ -61,7 +61,7 @@ contracts/vehicles can't be filtered by these values yet.
 | Item | Status |
 |---|---|
 | DPD | Done |
-| Config models, product groups, account mapping | Done (+ payment-category, exit-type and vehicle-category rules) |
+| Config models, product groups, accounting settings | Done (+ payment-category, exit-type and vehicle-category rules). The custom account mapping was removed on 6 Nov: financial figures are read from Odoo (see ACCOUNTING_ALIGNMENT.md) |
 | Risk bands (UGX or instalment multiples) | Done. **Finding:** the brief's rounded multiples (0.38, 0.95 …) put exactly 30,000 and 75,000 UGX in the wrong band; defaults are 4-decimal (0.3801 …) and reproduce the spreadsheet's UGX bands exactly. The >236,820 gap now lands in Critical. |
 | PAR by DPD buckets, configurable | Done (UGX-band variant not built) |
 | `gh.kpi.snapshot`, `gh.contract.snapshot`, weekly + month-end cron, frozen periods | Done |
@@ -101,7 +101,7 @@ contracts/vehicles can't be filtered by these values yet.
 | C10, C11 | Done | |
 | C12, C13 | Done | by product group (the mockup's "bike model") |
 | C14 shared default block | Done | |
-| C15, C16 financing | Done, empty | `gh.financing.facility/schedule`; card shows "Awaiting lender schedules" |
+| C15, C16 financing | Done, needs config | **Changed 6 Nov:** custom lender tables removed. Principal repaid = debits on the loan liability accounts picked in settings; interest = debits on the lender interest accounts. Actual repayments, no forward schedule (Odoo Loans app is not used by Green Hub) |
 | C17 forecast | Done | risk-adjusted uses trailing per-category rates from snapshots |
 | USD conversion | Done | Odoo rates; only when a lender currency is set |
 
@@ -110,9 +110,9 @@ contracts/vehicles can't be filtered by these values yet.
 |---|---|---|
 | B01 import (.xlsx, validation, template) | Done | unknown codes, bad periods, duplicates block the import; missing months warn |
 | B02 versions, approve + lock, revisions | Done | approved versions refuse edits and deletion |
-| B03–B05, B11 financial | Done, needs config | **Deviation:** budgets come from imported targets (`PL` lines), not from Odoo `budget.analytic/budget.line`. Green Hub's three Odoo budgets are project budgets, not a P&L budget. |
+| B03–B05, B11 financial | Done | **Changed 6 Nov:** read from Odoo's P&L report engine and Odoo report budgets (the budgets finance already keeps: APRIL/MAY BUDGET on live). Tiles are Revenue, Gross profit, EBITDA, Net profit; B11 "financing costs" is replaced by Net profit because Odoo's P&L has no financing line (interest sits in Other Expenses). EBITDA is a line of the "GreenHub P&L (EBITDA)" variant in Accounting › Reporting, created from settings |
 | B06–B10 operational | Done | end-date basis for portfolio counts |
-| B12 year-end outlook | Done | needs a "Forecast" version |
+| B12 year-end outlook | Done | EBITDA YTD from Odoo + the Odoo report budget chosen as Forecast budget for the rest of the year |
 | Weekly budget rule | Done | monthly ÷ days, shown on the page |
 
 ### 7 and 8
