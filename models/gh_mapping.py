@@ -44,6 +44,11 @@ class GhProductGroup(models.Model):
         "product.product", string="Contract products", context={"active_test": False},
         help="Contracts whose product is in this list belong to this group.",
     )
+    weekly_instalment_ref = fields.Float(
+        "Standard weekly instalment",
+        help="Expected weekly due for an available bike of this group (entire-fleet collection rate). "
+             "Empty = median instalment of this group's active contracts.",
+    )
     vehicle_model_ids = fields.Many2many(
         "fleet.vehicle.model", string="Vehicle models", context={"active_test": False},
         help="Vehicles of these models belong to this group.",
@@ -122,4 +127,146 @@ class GhVehicleCategoryRule(models.Model):
             if matched and not self.search([("category", "=", category), ("tag_ids", "in", matched.ids)], limit=1):
                 created |= self.create({"name": name, "sequence": sequence, "category": category,
                                         "tag_ids": [(6, 0, matched.ids)]})
+        return created
+
+
+PAYMENT_CATEGORIES = [
+    ("lease", "Lease"),
+    ("rental", "Rental"),
+    ("deposit", "Deposit"),
+    ("swap", "Battery swap"),
+    ("late_fee", "Late fee"),
+    ("spare_parts", "Spare parts"),
+    ("other", "Other"),
+]
+INSTALMENT_CATEGORIES = ("lease", "rental")
+
+
+class GhPaymentCategoryRule(models.Model):
+    """Ordered rules that put each mobile-money receipt in one category.
+
+    Linked records decide first (an instalment on a lease contract is lease),
+    the app's purpose prefix is the fallback. First match wins; anything left
+    over is 'other' and raises a warning on the Collections dashboard.
+    """
+
+    _name = "gh.payment.category.rule"
+    _description = "Green Hub payment category rule"
+    _order = "sequence, id"
+
+    name = fields.Char(required=True)
+    sequence = fields.Integer(default=10)
+    active = fields.Boolean(default=True)
+    category = fields.Selection(PAYMENT_CATEGORIES, required=True)
+    match_type = fields.Selection(
+        [("instalment_lease", "Linked instalment on a lease-to-own contract"),
+         ("instalment_rental", "Linked instalment on a rental contract"),
+         ("memo_prefix", "Purpose text starts with")],
+        required=True, default="memo_prefix",
+    )
+    memo_prefix = fields.Char(help="Case-insensitive, compared with the receipt's purpose text from the app.")
+
+    @api.model
+    def _classifier(self):
+        rules = self.sudo().search([])
+
+        def classify(log):
+            for rule in rules:
+                if rule.match_type == "instalment_lease" and log.installment_id \
+                        and log.installment_id.contract_id.type == "Lease_to_own":
+                    return rule.category
+                if rule.match_type == "instalment_rental" and log.installment_id \
+                        and log.installment_id.contract_id.type == "rental":
+                    return rule.category
+                if rule.match_type == "memo_prefix" and rule.memo_prefix and \
+                        (log.mobile_money_contact or "").strip().upper().startswith(rule.memo_prefix.strip().upper()):
+                    return rule.category
+            return "other"
+        return classify
+
+
+EXIT_TYPES = [
+    ("completion", "Completion"),
+    ("upgrade", "Upgrade or contract change"),
+    ("voluntary_return", "Voluntary return"),
+    ("repossession_default", "Repossession or default"),
+    ("other", "Other / not recorded"),
+]
+
+
+class GhExitTypeRule(models.Model):
+    """Closure reason -> exit type, used to tell churn from upgrades and completions."""
+
+    _name = "gh.exit.type.rule"
+    _description = "Green Hub exit type rule"
+    _order = "sequence, id"
+
+    sequence = fields.Integer(default=10)
+    closure_reason_id = fields.Many2one("closure.reason", required=True)
+    exit_type = fields.Selection(EXIT_TYPES, required=True)
+
+    @api.model
+    def _exit_type(self, contract):
+        if contract.upgraded_to_contract_id:
+            return "upgrade"
+        reason = contract.closure_reason_id or contract.termination_id.closure_reason_id
+        if reason:
+            rule = self.sudo().search([("closure_reason_id", "=", reason.id)], limit=1)
+            if rule:
+                return rule.exit_type
+        if contract.state == "expired":
+            return "completion"
+        return "other"
+
+
+ACCOUNT_ROLES = [
+    ("revenue_lease", "Revenue: lease interest and fees"),
+    ("revenue_rental", "Revenue: rental"),
+    ("revenue_monitoring", "Revenue: monitoring fees"),
+    ("revenue_other", "Revenue: swaps, spare parts and other"),
+    ("cost_of_sales", "Cost of sales"),
+    ("opex_staff", "Operating expenses: staff"),
+    ("opex_fleet", "Operating expenses: fleet operations and maintenance"),
+    ("opex_admin", "Operating expenses: admin and other"),
+    ("default_loss", "Default losses (write-offs)"),
+    ("financing_interest", "Financing costs: interest"),
+    ("financing_fees", "Financing costs: fees"),
+]
+
+
+class GhAccountMapping(models.Model):
+    """General ledger accounts behind each P&L line and the default-loss KPI.
+
+    Replaces the spreadsheet's match on account codes and on 'default' in labels.
+    """
+
+    _name = "gh.account.mapping"
+    _description = "Green Hub account mapping"
+    _order = "role"
+
+    role = fields.Selection(ACCOUNT_ROLES, required=True)
+    account_ids = fields.Many2many("account.account", string="Accounts")
+    company_id = fields.Many2one("res.company", default=lambda self: self.env.company, required=True)
+
+    _role_uniq = models.Constraint("unique(company_id, role)", "Each role is mapped once per company.")
+
+    @api.model
+    def _accounts(self, role):
+        return self.sudo().search([("role", "=", role), ("company_id", "=", self.env.company.id)]).account_ids
+
+
+class GhExitTypeRuleSuggest(models.Model):
+    _inherit = "gh.exit.type.rule"
+
+    @api.model
+    def action_suggest_exit_rules(self):
+        """One-off setup helper: propose exit types for the closure reasons in use (Manager reviews)."""
+        proposals = {"expired": "completion", "paid off": "completion", "upgraded": "upgrade",
+                     "voluntary return": "voluntary_return", "repossessed": "repossession_default",
+                     "terminated": "repossession_default", "other": "other"}
+        created = self.browse()
+        for reason in self.env["closure.reason"].sudo().search([]):
+            exit_type = proposals.get((reason.name or "").strip().lower())
+            if exit_type and not self.search([("closure_reason_id", "=", reason.id)], limit=1):
+                created |= self.create({"closure_reason_id": reason.id, "exit_type": exit_type})
         return created

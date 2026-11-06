@@ -35,18 +35,32 @@
 
     <!-- filters -->
     <div class="gh-filters">
-      <div class="gh-f">As of <span class="gh-date" t-esc="fmtDate(d.as_of)"/></div>
+      <div class="gh-f">As of
+        <select class="gh-select" t-on-change="onAsOf">
+          <option value="" t-att-selected="!state.asOf">Today (live)</option>
+          <t t-foreach="d.as_of_options" t-as="opt" t-key="opt">
+            <option t-att-value="opt" t-att-selected="state.asOf === opt">Week ending <t t-esc="fmtDate(opt)"/></option>
+          </t>
+        </select>
+      </div>
       <div class="gh-f">Trend
         <span class="gh-seg">
-          <button t-att-class="state.grain === 'week' ? 'on' : ''" t-on-click="() => this.setGrain('week')">Week</button>
-          <button t-att-class="state.grain === 'month' ? 'on' : ''" t-on-click="() => this.setGrain('month')">Month</button>
+          <button t-att-class="state.grain === 'week' ? 'on' : ''" t-on-click="() => this.set('grain', 'week')">Week</button>
+          <button t-att-class="state.grain === 'month' ? 'on' : ''" t-on-click="() => this.set('grain', 'month')">Month</button>
+        </span>
+      </div>
+      <div class="gh-f">Range
+        <span class="gh-seg">
+          <button t-att-class="state.range === '26w' ? 'on' : ''" t-on-click="() => this.set('range', '26w')"><t t-if="state.grain === 'week'">26 wks</t><t t-else="">6 mo</t></button>
+          <button t-att-class="state.range === 'ytd' ? 'on' : ''" t-on-click="() => this.set('range', 'ytd')">YTD</button>
+          <button t-att-class="state.range === '12m' ? 'on' : ''" t-on-click="() => this.set('range', '12m')">12 mo</button>
         </span>
       </div>
       <div class="gh-f">Product
         <span class="gh-seg">
-          <button t-att-class="!state.productGroupId ? 'on' : ''" t-on-click="() => this.setProduct(false)">All</button>
+          <button t-att-class="!state.productGroupId ? 'on' : ''" t-on-click="() => this.set('productGroupId', false)">All</button>
           <t t-foreach="d.product_groups" t-as="g" t-key="g.id">
-            <button t-att-class="state.productGroupId === g.id ? 'on' : ''" t-on-click="() => this.setProduct(g.id)" t-esc="g.name"/>
+            <button t-att-class="state.productGroupId === g.id ? 'on' : ''" t-on-click="() => this.set('productGroupId', g.id)" t-esc="g.name"/>
           </t>
         </span>
       </div>
@@ -67,6 +81,9 @@
     </div>
 
     <div class="gh-body">
+      <div class="gh-panel-error" t-if="d.historic" style="background:#F5EBDA;color:#8A5A12">
+        Showing the week ending <t t-esc="fmtDate(d.as_of)"/> from snapshots. Fleet, licence and accident panels are live-only and hidden.
+      </div>
       <!-- riders at a glance -->
       <div>
         <h2 class="gh-h2">Riders at a glance</h2>
@@ -240,30 +257,71 @@
       </div>
 
       <!-- history-driven panels -->
+      <div class="gh-panel-error" t-if="panelError('trends')">Trends failed: <t t-esc="panelError('trends')"/></div>
       <div class="gh-row" style="grid-template-columns:minmax(0,1fr) minmax(0,2fr)">
         <div class="gh-panel"><span class="kc">R10–R12</span>
           <h3 class="gh-h3">Retention</h3>
-          <div class="gh-pcap">Opening-cohort method · new riders excluded from the cohort</div>
-          <div class="empty"><b>Awaiting weekly history</b>Retention needs rider status at each week end. It fills in once the history backfill has run.</div>
+          <div class="gh-pcap">Opening-cohort method · new riders excluded from the cohort · upgrades count as retained</div>
+          <t t-if="hasTrend">
+            <div class="gh-tiles" style="grid-template-columns:1fr 1fr 1fr;gap:10px">
+              <div><div class="gh-tile-l">Lifetime</div>
+                <div class="gh-tile-n"><t t-if="t.lifetime and t.lifetime.pct !== null"><t t-esc="t.lifetime.pct"/><small>%</small></t><t t-else="">—</t></div>
+                <div class="gh-tile-q" t-if="t.lifetime">since <t t-esc="fmtDate(t.lifetime.since)"/> · cohort <t t-esc="t.lifetime.cohort"/></div></div>
+              <div><div class="gh-tile-l">Monthly<t t-if="t.monthly"> (<t t-esc="shortDate(t.monthly.month)"/>)</t></div>
+                <div class="gh-tile-n"><t t-if="t.monthly and t.monthly.pct !== null"><t t-esc="t.monthly.pct"/><small>%</small></t><t t-else="">—</t></div>
+                <div class="gh-tile-q" t-if="t.monthly"><t t-esc="t.monthly.retained"/> of <t t-esc="t.monthly.cohort"/></div></div>
+              <div><div class="gh-tile-l"><t t-if="state.grain === 'week'">Weekly</t><t t-else="">Monthly</t> avg</div>
+                <div class="gh-tile-n"><t t-if="t.weekly_avg !== null"><t t-esc="t.weekly_avg"/><small>%</small></t><t t-else="">—</t></div>
+                <div class="gh-tile-q">over the selected range</div></div>
+            </div>
+            <div style="margin-top:14px"><GhChart kind="'line'" config="retentionChart"/></div>
+          </t>
+          <div class="empty" t-else=""><b>Awaiting history</b>Run Configuration › History backfill; at least two periods are needed.</div>
         </div>
         <div class="gh-panel"><span class="kc">R13</span>
           <h3 class="gh-h3">Customer growth</h3>
           <div class="gh-pcap">Opening + first-time + returning − exits = closing (checked every period)</div>
-          <div class="empty"><b>Awaiting weekly history</b>Growth needs opening and closing rider counts per period from the snapshot store.</div>
+          <t t-if="hasTrend">
+            <div class="lg"><span><i class="sw" style="background:var(--s-zembo)"/>First-time riders</span><span><i class="sw" style="background:var(--s-niu)"/>Returning riders</span><span><i class="sw" style="background:var(--s-4)"/>Exits</span></div>
+            <GhChart kind="'bar'" config="growthChart"/>
+            <table class="t" style="margin-top:12px">
+              <thead><tr><th>Period</th><th class="r">Opening</th><th class="r">+ First-time</th><th class="r">+ Returning</th>
+                <th class="r">− Exits (planned · default · other)</th><th class="r">Closing</th><th class="r">Check</th></tr></thead>
+              <tbody>
+                <t t-foreach="growthRows" t-as="g" t-key="g.end">
+                  <tr><td t-esc="fmtDate(g.end)"/><td class="r" t-esc="g.opening"/><td class="r" t-esc="g.first_time"/>
+                    <td class="r" t-esc="g.returning"/><td class="r"><t t-esc="g.exits"/> <span class="muted">(<t t-esc="g.exits_planned"/> · <t t-esc="g.exits_default"/> · <t t-esc="g.exits_other"/>)</span></td>
+                    <td class="r"><b t-esc="g.closing"/></td><td class="r"><t t-if="g.ok">✓</t><t t-else="">⚠</t></td></tr>
+                </t>
+              </tbody>
+            </table>
+          </t>
+          <div class="empty" t-else=""><b>Awaiting history</b>Growth needs opening and closing rider counts per period from the snapshot store.</div>
         </div>
       </div>
       <div class="gh-row" style="grid-template-columns:minmax(0,1fr) minmax(0,1fr)">
         <div class="gh-panel"><span class="kc">R15</span>
           <h3 class="gh-h3">Gender and age over time</h3>
           <div class="gh-pcap">Share of active riders at each period end · age at that date</div>
-          <div class="empty" t-if="!hasHistory"><b>Awaiting weekly history</b>Fills in from snapshots; at least two periods are needed.</div>
+          <t t-if="hasTrend and !t.product_filtered">
+            <div class="lg"><span><i class="sw" style="background:var(--s-zembo)"/>Men &lt;<t t-esc="d.core.youth ? d.core.youth.limit : 35"/></span><span><i class="sw" style="background:var(--s-iqube)"/>Women &lt;<t t-esc="d.core.youth ? d.core.youth.limit : 35"/></span><span><i class="sw" style="background:var(--s-niu)"/>Men <t t-esc="d.core.youth ? d.core.youth.limit : 35"/>+</span><span><i class="sw" style="background:var(--s-4)"/>Women <t t-esc="d.core.youth ? d.core.youth.limit : 35"/>+</span></div>
+            <GhChart kind="'stackCols100'" config="demoChart"/>
+          </t>
+          <div class="empty" t-elif="t and t.product_filtered"><b>All products only</b>This series is stored for the whole portfolio.</div>
+          <div class="empty" t-else=""><b>Awaiting history</b>Fills in from snapshots; at least two periods are needed.</div>
         </div>
         <div class="gh-panel"><span class="kc">R16</span>
           <h3 class="gh-h3">Unassigned e-bodas over time</h3>
-          <div class="gh-pcap">Available vehicles at each period end · from vehicle-state snapshots</div>
-          <div class="empty" t-if="!hasHistory"><b>Awaiting weekly history</b>Fills in from snapshots; at least two periods are needed.</div>
+          <div class="gh-pcap">Available vehicles at each period end · tracked vehicle state, today's tags</div>
+          <t t-if="hasTrend and !t.product_filtered">
+            <div class="lg"><span><i class="sw" style="background:var(--s-zembo)"/>New (never contracted)</span><span><i class="sw" style="background:var(--s-niu)"/>Re-financing</span></div>
+            <GhChart kind="'bar'" config="unassignedChart"/>
+          </t>
+          <div class="empty" t-elif="t and t.product_filtered"><b>All products only</b>This series is stored for the whole fleet.</div>
+          <div class="empty" t-else=""><b>Awaiting history</b>Fills in from snapshots; at least two periods are needed.</div>
         </div>
       </div>
+      <div class="gh-assume" t-if="t"><t t-foreach="t.assumptions" t-as="a" t-key="a_index">· <t t-esc="a"/> </t></div>
 
       <!-- licences expiring -->
       <div class="gh-panel" t-if="ok('safety')"><span class="kc">R18</span>

@@ -49,7 +49,10 @@ class GhKpiSnapshot(models.Model):
         }
         to_create = []
         now = fields.Datetime.now()
+        merged = {}
         for code, dim, value_float, value_count in rows:
+            merged[(code, dim or "")] = (value_float, value_count)  # last definition wins
+        for (code, dim), (value_float, value_count) in merged.items():
             vals = {"value_float": value_float, "value_count": value_count, "computed_at": now, "source": source}
             record = existing.get((code, dim or ""))
             if record:
@@ -63,14 +66,57 @@ class GhKpiSnapshot(models.Model):
 
     @api.model
     def _cron_weekly_snapshot(self):
-        """Snapshot the live KPIs for the ISO week that ends today or ended last Sunday."""
-        service = self.env["gh.kpi.service"]
+        """Snapshot live values on each Sunday (week end) and on the last day of each month.
+
+        Live status is only exact for today, so a late run never back-dates live values;
+        missed periods are filled by the backfill wizard instead.
+        """
+        history = self.env["gh.history.service"]
         for company in self.env["res.company"].search([]):
             today = fields.Date.context_today(self.with_company(company))
-            week_end = today + timedelta(days=(6 - today.weekday())) if today.weekday() == 6 else \
-                today - timedelta(days=today.weekday() + 1)
-            # Live status is only exact for today, so a late run never back-dates live values.
-            if week_end != today:
-                continue
-            rows = service.with_company(company)._riders_snapshot_rows(week_end)
-            self._upsert(company, "week", week_end - timedelta(days=6), week_end, rows, "cron")
+            if today.weekday() == 6:
+                history.with_company(company)._snapshot_live("week", today)
+            if (today + timedelta(days=1)).day == 1:
+                history.with_company(company)._snapshot_live("month", today)
+
+
+RISK_CATEGORIES = [
+    ("ahead", "Ahead"), ("ontrack", "On track"), ("norisk", "No risk"), ("low", "Low risk"),
+    ("atrisk", "At risk"), ("high", "High risk"), ("critical", "Critical"), ("default", "Default"),
+]
+PAR_BUCKETS = [("par0", "PAR0"), ("par7", "PAR7"), ("par14", "PAR14"), ("par21", "PAR21"), ("par28", "PAR28")]
+
+
+class GhContractSnapshot(models.Model):
+    """One row per contract per period end: the state the portfolio KPIs are built from."""
+
+    _name = "gh.contract.snapshot"
+    _description = "Green Hub contract snapshot"
+    _order = "period_end desc, contract_id"
+
+    company_id = fields.Many2one("res.company", required=True, default=lambda self: self.env.company, index=True)
+    period_type = fields.Selection([("week", "Week"), ("month", "Month")], required=True, index=True)
+    period_end = fields.Date(required=True, index=True)
+    contract_id = fields.Many2one("rider.contract", required=True, ondelete="cascade", index=True)
+    rider_id = fields.Many2one("rider", index=True)
+    bike_id = fields.Many2one("fleet.vehicle")
+    product_group_id = fields.Many2one("gh.product.group")
+    state = fields.Char()
+    payment_state = fields.Char()
+    is_active = fields.Boolean(index=True, help="Running or paused at the period end.")
+    in_default = fields.Boolean()
+    arrears = fields.Float()
+    penalties = fields.Float()
+    credit = fields.Float()
+    instalment = fields.Float()
+    dpd = fields.Integer("Days past due")
+    risk_category = fields.Selection(RISK_CATEGORIES)
+    par_bucket = fields.Selection(PAR_BUCKETS)
+    due_in_period = fields.Float()
+    collected_in_period = fields.Float(help="Instalment receipts (lease and rental) in the period.")
+    source = fields.Selection([("cron", "Cron"), ("backfill", "Backfill"), ("manual", "Manual")], required=True)
+
+    _contract_period_uniq = models.Constraint(
+        "unique(company_id, period_type, period_end, contract_id)",
+        "One snapshot per contract and period end.",
+    )

@@ -1,0 +1,282 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- extra settings on the existing config form -->
+    <record id="gh_dashboard_config_form_risk" model="ir.ui.view">
+        <field name="name">gh.dashboard.config.form.risk</field>
+        <field name="model">gh.dashboard.config</field>
+        <field name="inherit_id" ref="gh_dashboard_config_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//sheet" position="inside">
+                <group>
+                    <group string="Risk bands (portfolio)">
+                        <field name="risk_band_basis"/>
+                        <field name="band_ontrack" invisible="risk_band_basis != 'instalments'"/>
+                        <field name="band_norisk" invisible="risk_band_basis != 'instalments'"/>
+                        <field name="band_low" invisible="risk_band_basis != 'instalments'"/>
+                        <field name="band_atrisk" invisible="risk_band_basis != 'instalments'"/>
+                        <field name="band_high" invisible="risk_band_basis != 'instalments'"/>
+                        <field name="band_ugx_ontrack" invisible="risk_band_basis != 'ugx'"/>
+                        <field name="band_ugx_norisk" invisible="risk_band_basis != 'ugx'"/>
+                        <field name="band_ugx_low" invisible="risk_band_basis != 'ugx'"/>
+                        <field name="band_ugx_atrisk" invisible="risk_band_basis != 'ugx'"/>
+                        <field name="band_ugx_high" invisible="risk_band_basis != 'ugx'"/>
+                    </group>
+                    <group string="Defaults and PAR">
+                        <field name="default_scope"/>
+                        <field name="par_1"/>
+                        <field name="par_2"/>
+                        <field name="par_3"/>
+                    </group>
+                    <group string="Collections">
+                        <field name="forecast_weeks"/>
+                        <field name="rate_window_weeks"/>
+                        <field name="fx_currency_id"/>
+                    </group>
+                </group>
+            </xpath>
+        </field>
+    </record>
+    <record id="gh_product_group_form_ref" model="ir.ui.view">
+        <field name="name">gh.product.group.form.ref</field>
+        <field name="model">gh.product.group</field>
+        <field name="inherit_id" ref="gh_product_group_form"/>
+        <field name="arch" type="xml">
+            <field name="color_slot" position="after"><field name="weekly_instalment_ref"/></field>
+        </field>
+    </record>
+
+    <record id="gh_payment_category_rule_list" model="ir.ui.view">
+        <field name="name">gh.payment.category.rule.list</field>
+        <field name="model">gh.payment.category.rule</field>
+        <field name="arch" type="xml">
+            <list editable="bottom">
+                <field name="sequence" widget="handle"/>
+                <field name="name"/>
+                <field name="match_type"/>
+                <field name="memo_prefix" invisible="match_type != 'memo_prefix'"/>
+                <field name="category"/>
+            </list>
+        </field>
+    </record>
+    <record id="action_gh_payment_category_rule" model="ir.actions.act_window">
+        <field name="name">Payment category rules</field>
+        <field name="res_model">gh.payment.category.rule</field>
+        <field name="view_mode">list</field>
+    </record>
+
+    <record id="gh_exit_type_rule_list" model="ir.ui.view">
+        <field name="name">gh.exit.type.rule.list</field>
+        <field name="model">gh.exit.type.rule</field>
+        <field name="arch" type="xml">
+            <list editable="bottom">
+                <field name="sequence" widget="handle"/>
+                <field name="closure_reason_id"/>
+                <field name="exit_type"/>
+            </list>
+        </field>
+    </record>
+    <record id="action_gh_exit_type_rule" model="ir.actions.act_window">
+        <field name="name">Exit types</field>
+        <field name="res_model">gh.exit.type.rule</field>
+        <field name="view_mode">list</field>
+        <field name="help" type="html"><p>Map each closure reason to an exit type, so completions and upgrades are not counted as churn.</p></field>
+    </record>
+    <record id="action_gh_suggest_exit_rules" model="ir.actions.server">
+        <field name="name">Suggest exit types from closure reasons</field>
+        <field name="model_id" ref="model_gh_exit_type_rule"/>
+        <field name="binding_model_id" ref="model_gh_exit_type_rule"/>
+        <field name="binding_view_types">list</field>
+        <field name="group_ids" eval="[(4, ref('group_gh_dashboard_manager'))]"/>
+        <field name="state">code</field>
+        <field name="code">model.action_suggest_exit_rules()</field>
+    </record>
+
+    <record id="gh_account_mapping_list" model="ir.ui.view">
+        <field name="name">gh.account.mapping.list</field>
+        <field name="model">gh.account.mapping</field>
+        <field name="arch" type="xml">
+            <list editable="bottom">
+                <field name="role"/>
+                <field name="account_ids" widget="many2many_tags"/>
+                <field name="company_id" groups="base.group_multi_company"/>
+            </list>
+        </field>
+    </record>
+    <record id="action_gh_account_mapping" model="ir.actions.act_window">
+        <field name="name">Account mapping</field>
+        <field name="res_model">gh.account.mapping</field>
+        <field name="view_mode">list</field>
+        <field name="help" type="html"><p>Which ledger accounts make up each P&amp;L line, default losses and financing costs.</p></field>
+    </record>
+
+    <record id="gh_target_import_wizard_form" model="ir.ui.view">
+        <field name="name">gh.target.import.wizard.form</field>
+        <field name="model">gh.target.import.wizard</field>
+        <field name="arch" type="xml">
+            <form string="Import targets">
+                <group>
+                    <field name="version_id"/>
+                    <field name="file" filename="filename"/>
+                    <field name="filename" invisible="1"/>
+                    <field name="template" filename="template_name" readonly="1" invisible="not template"/>
+                    <field name="template_name" invisible="1"/>
+                </group>
+                <field name="report" invisible="not report"/>
+                <footer>
+                    <button name="action_import" type="object" string="Validate and import" class="btn-primary"/>
+                    <button name="action_template" type="object" string="Download template"/>
+                    <button special="cancel" string="Close"/>
+                </footer>
+            </form>
+        </field>
+    </record>
+    <record id="action_gh_target_import_wizard" model="ir.actions.act_window">
+        <field name="name">Import targets</field>
+        <field name="res_model">gh.target.import.wizard</field>
+        <field name="view_mode">form</field>
+        <field name="target">new</field>
+    </record>
+
+    <!-- targets and versions -->
+    <record id="gh_kpi_target_version_list" model="ir.ui.view">
+        <field name="name">gh.kpi.target.version.list</field>
+        <field name="model">gh.kpi.target.version</field>
+        <field name="arch" type="xml">
+            <list>
+                <field name="name"/>
+                <field name="kind"/>
+                <field name="state" widget="badge" decoration-success="state == 'approved'"/>
+                <field name="effective_from"/>
+                <field name="effective_to"/>
+                <field name="approved_by"/>
+                <field name="approved_on"/>
+                <field name="line_count"/>
+            </list>
+        </field>
+    </record>
+    <record id="gh_kpi_target_version_form" model="ir.ui.view">
+        <field name="name">gh.kpi.target.version.form</field>
+        <field name="model">gh.kpi.target.version</field>
+        <field name="arch" type="xml">
+            <form>
+                <header>
+                    <button name="action_approve" type="object" string="Approve and lock" class="btn-primary"
+                            invisible="state != 'draft'" groups="greenhub_dashboards.group_gh_dashboard_manager"
+                            confirm="An approved version can no longer be edited. Continue?"/>
+                    <button name="%(action_gh_target_import_wizard)d" type="action" string="Import .xlsx"
+                            invisible="state != 'draft'" context="{'default_version_id': id}"/>
+                    <button name="action_new_revision" type="object" string="New revision" invisible="state != 'approved'"/>
+                    <field name="state" widget="statusbar"/>
+                </header>
+                <sheet>
+                    <group>
+                        <group>
+                            <field name="name"/>
+                            <field name="kind"/>
+                            <field name="company_id" groups="base.group_multi_company"/>
+                        </group>
+                        <group>
+                            <field name="effective_from"/>
+                            <field name="effective_to"/>
+                            <field name="approved_by"/>
+                            <field name="approved_on"/>
+                        </group>
+                    </group>
+                    <field name="line_ids" readonly="state == 'approved'">
+                        <list editable="bottom">
+                            <field name="metric_code"/>
+                            <field name="period_type"/>
+                            <field name="period_start"/>
+                            <field name="dim_key"/>
+                            <field name="value"/>
+                        </list>
+                    </field>
+                </sheet>
+            </form>
+        </field>
+    </record>
+    <record id="action_gh_kpi_target_version" model="ir.actions.act_window">
+        <field name="name">Budget &amp; target versions</field>
+        <field name="res_model">gh.kpi.target.version</field>
+        <field name="view_mode">list,form</field>
+    </record>
+
+    <!-- lender facilities -->
+    <record id="gh_financing_facility_form" model="ir.ui.view">
+        <field name="name">gh.financing.facility.form</field>
+        <field name="model">gh.financing.facility</field>
+        <field name="arch" type="xml">
+            <form>
+                <sheet>
+                    <group>
+                        <field name="name"/>
+                        <field name="lender_id"/>
+                        <field name="currency_id"/>
+                    </group>
+                    <field name="schedule_ids">
+                        <list editable="bottom">
+                            <field name="due_date"/>
+                            <field name="principal"/>
+                            <field name="interest"/>
+                            <field name="fees"/>
+                            <field name="paid_date"/>
+                            <field name="paid_amount"/>
+                            <field name="currency_id" column_invisible="True"/>
+                        </list>
+                    </field>
+                </sheet>
+            </form>
+        </field>
+    </record>
+    <record id="gh_financing_facility_list" model="ir.ui.view">
+        <field name="name">gh.financing.facility.list</field>
+        <field name="model">gh.financing.facility</field>
+        <field name="arch" type="xml">
+            <list><field name="name"/><field name="lender_id"/><field name="currency_id"/></list>
+        </field>
+    </record>
+    <record id="action_gh_financing_facility" model="ir.actions.act_window">
+        <field name="name">Lender facilities</field>
+        <field name="res_model">gh.financing.facility</field>
+        <field name="view_mode">list,form</field>
+    </record>
+
+    <!-- history -->
+    <record id="gh_backfill_wizard_form" model="ir.ui.view">
+        <field name="name">gh.backfill.wizard.form</field>
+        <field name="model">gh.backfill.wizard</field>
+        <field name="arch" type="xml">
+            <form string="History backfill">
+                <p>Rebuilds weekly and month-end snapshots from Odoo's change history. Periods that already hold a
+                   live snapshot stay frozen unless you tick "Overwrite". Assumptions are listed on each dashboard.</p>
+                <group>
+                    <group>
+                        <field name="date_from"/>
+                        <field name="date_to"/>
+                    </group>
+                    <group>
+                        <field name="weekly"/>
+                        <field name="monthly"/>
+                        <field name="force"/>
+                    </group>
+                </group>
+                <field name="result" invisible="not result"/>
+                <group invisible="not csv_file">
+                    <field name="csv_file" filename="csv_name"/>
+                    <field name="csv_name" invisible="1"/>
+                </group>
+                <footer>
+                    <button name="action_run" type="object" string="Run backfill" class="btn-primary"/>
+                    <button name="action_snapshot_now" type="object" string="Snapshot today (live)"/>
+                    <button special="cancel" string="Close"/>
+                </footer>
+            </form>
+        </field>
+    </record>
+    <record id="action_gh_backfill_wizard" model="ir.actions.act_window">
+        <field name="name">History backfill</field>
+        <field name="res_model">gh.backfill.wizard</field>
+        <field name="view_mode">form</field>
+        <field name="target">new</field>
+    </record>
+</odoo>

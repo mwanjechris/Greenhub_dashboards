@@ -1,126 +1,91 @@
 /** @odoo-module **/
 
 import { registry } from "@web/core/registry";
-import { useService } from "@web/core/utils/hooks";
-import { Component, onWillStart, useState } from "@odoo/owl";
-import { fmtDate, fmtInt, fmtPct, slotColor, sparkPoints } from "../components/gh_common";
+import { GhDashboardBase } from "../components/gh_base";
+import { sparkPoints } from "../components/gh_common";
 
-/**
- * Riders & Customers (spec section 5.1, mockup tab 1).
- *
- * A bare root div with height:100% / overflow-y:auto, not Odoo's Layout:
- * nesting a scroll region inside Layout's .o_content broke scrolling on
- * the sister Nexus module. All numbers come from gh.kpi.service; this
- * component only renders them and opens the records behind each one.
- */
-export class RidersDashboard extends Component {
+/** Riders & Customers (spec 5.1, mockup tab 1). */
+export class RidersDashboard extends GhDashboardBase {
     static template = "greenhub_dashboards.RidersDashboard";
-    static props = ["*"];
+    method = "get_riders_dashboard";
 
-    setup() {
-        this.orm = useService("orm");
-        this.action = useService("action");
-        this.fmtInt = fmtInt;
-        this.fmtPct = fmtPct;
-        this.fmtDate = fmtDate;
-        this.slotColor = slotColor;
-        this.state = useState({
-            data: null,
-            loading: true,
-            loadError: null,
-            productGroupId: false,
-            grain: "week",
-            showCodes: false,
-            showChecks: false,
-        });
-        onWillStart(() => this.load());
+    initialState() {
+        return { asOf: false, range: "26w" };
     }
 
-    async load() {
-        this.state.loading = true;
-        this.state.loadError = null;
-        try {
-            this.state.data = await this.orm.call("gh.kpi.service", "get_riders_dashboard", [], {
-                product_group_id: this.state.productGroupId || false,
-                grain: this.state.grain,
-            });
-        } catch (err) {
-            console.error("Green Hub Riders dashboard failed to load", err);
-            this.state.loadError =
-                err?.data?.message || err?.message?.data?.message || err?.message || "Unknown error";
-        } finally {
-            this.state.loading = false;
-        }
+    params() {
+        return { product_group_id: this.state.productGroupId || false, grain: this.state.grain,
+                 as_of: this.state.asOf || false, range_key: this.state.range };
     }
 
-    setProduct(groupId) {
-        this.state.productGroupId = groupId;
-        this.load();
+    onAsOf(ev) {
+        this.set("asOf", ev.target.value || false);
     }
 
-    setGrain(grain) {
-        this.state.grain = grain;
-        this.load();
+    get t() {
+        return this.ok("trends") ? this.d.trends : null;
     }
 
-    get d() {
-        return this.state.data;
+    get hasTrend() {
+        return Boolean(this.t && this.t.periods.length >= 2);
     }
 
-    ok(key) {
-        return Boolean(this.d && this.d[key] && this.d[key].ok);
-    }
-
-    get checksFailed() {
-        return (this.d?.checks || []).filter((c) => !c.ok);
-    }
-
-    get readAt() {
-        if (!this.d) {
-            return "";
-        }
-        const t = new Date(`${this.d.computed_at.replace(" ", "T")}Z`);
-        return t.toLocaleString("en-GB", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
+    get labels() {
+        return this.t ? this.t.periods.map((p) => this.periodLabel(p)) : [];
     }
 
     get r01Spark() {
-        const h = this.ok("history") ? this.d.history : null;
-        if (!h) {
-            return "";
-        }
-        const s = h.series["R01|"] || {};
-        return sparkPoints(h.periods.map((p) => s[p]).filter((v) => v !== undefined));
+        return this.t ? sparkPoints(this.t.active.slice(-12)) : "";
     }
 
-    get hasHistory() {
-        return this.ok("history") && this.d.history.periods.length >= 2;
+    get retentionChart() {
+        const vals = this.t.growth.map((g) => g.retention);
+        const present = vals.filter((v) => v !== null);
+        const low = present.length ? Math.max(0, Math.floor((Math.min(...present) - 2) / 5) * 5) : 80;
+        return { labels: this.labels, h: 150, yMin: low, yMax: 100, yFmt: (v) => v.toFixed(0) + "%",
+                 tipFmt: (v) => v.toFixed(1) + "%",
+                 series: [{ name: `${this.state.grain === "week" ? "Weekly" : "Monthly"} retention`, values: vals, color: "--gh-green" }] };
+    }
+
+    get growthChart() {
+        const g = this.t.growth;
+        return { labels: this.labels, h: 170, series: [
+            { name: "First-time riders", values: g.map((r) => r.first_time), color: "--s-zembo" },
+            { name: "Returning riders", values: g.map((r) => r.returning), color: "--s-niu" },
+            { name: "Exits", values: g.map((r) => r.exits), color: "--s-4" },
+        ] };
+    }
+
+    get growthRows() {
+        return this.t.growth.slice(-6).reverse();
+    }
+
+    get demoChart() {
+        const keys = ["m_u", "f_u", "m_o", "f_o"];
+        const limit = this.ok("core") ? this.d.core.youth.limit : 35;
+        return {
+            labels: this.labels, h: 200,
+            cats: [
+                { name: `Men <${limit}`, color: "--s-zembo" }, { name: `Women <${limit}`, color: "--s-iqube" },
+                { name: `Men ${limit}+`, color: "--s-niu" }, { name: `Women ${limit}+`, color: "--s-4" },
+            ],
+            data: this.t.demo.map((d) => keys.map((k) => d[k] || 0)),
+        };
+    }
+
+    get unassignedChart() {
+        return { labels: this.labels, h: 190, stacked: true, series: [
+            { name: "New (never contracted)", values: this.t.unassigned.map((u) => u.new || 0), color: "--s-zembo" },
+            { name: "Re-financing", values: this.t.unassigned.map((u) => u.refinancing || 0), color: "--s-niu" },
+        ] };
     }
 
     licenceCount(key) {
         return this.d.safety.licences.counts[key];
     }
 
-    open(resModel, domain, name) {
-        this.action.doAction({
-            type: "ir.actions.act_window",
-            name: name || resModel,
-            res_model: resModel,
-            views: [
-                [false, "list"],
-                [false, "form"],
-            ],
-            domain: domain || [],
-            target: "current",
-        });
-    }
-
     openRider(riderId) {
-        this.action.doAction({
-            type: "ir.actions.act_window",
-            res_model: "rider",
-            res_id: riderId,
-            views: [[false, "form"]],
-        });
+        this.action.doAction({ type: "ir.actions.act_window", res_model: "rider", res_id: riderId, views: [[false, "form"]] });
     }
 }
 

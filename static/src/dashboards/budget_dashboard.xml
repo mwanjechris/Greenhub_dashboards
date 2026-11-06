@@ -1,0 +1,160 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<templates xml:space="preserve">
+<t t-name="greenhub_dashboards.BudgetDashboard">
+<div class="gh">
+  <t t-if="state.loading and !state.data"><div class="gh-loading">Loading…</div></t>
+  <t t-elif="state.loadError">
+    <div class="gh-fatal"><h3>Budget &amp; Performance failed to load</h3><p t-esc="state.loadError"/>
+      <button t-on-click="() => this.load()">Retry</button></div>
+  </t>
+  <t t-else="">
+  <div t-att-class="state.showCodes ? 'show-codes' : ''">
+    <div class="gh-header">
+      <div class="gh-hl">
+        <div class="gh-eyebrow"><t t-esc="d.company"/> · Green Hub</div>
+        <h1 class="gh-title">Budget, Actuals &amp; Performance</h1>
+        <div class="gh-meta">
+          <span class="gh-pill"><span class="gh-dot"/>Posted entries only · version:
+            <t t-if="d.version"><t t-esc="d.version.name"/><t t-if="d.version.state === 'approved'"> 🔒</t></t><t t-else="">none approved</t></span>
+          <span class="gh-meta-t" t-if="d.version and d.version.approved_by">Approved <t t-esc="fmtDate(d.version.approved_on)"/> by <t t-esc="d.version.approved_by"/> · effective <t t-esc="fmtDate(d.version.effective_from)"/> – <t t-esc="fmtDate(d.version.effective_to)"/></span>
+        </div>
+      </div>
+      <div class="gh-hr" t-if="ok('pl')">
+        <div class="gh-logo">GREENHUB<small>DRIVING PROGRESS</small></div>
+        <div class="gh-hero-l">EBITDA · <t t-esc="periodName"/></div>
+        <div class="gh-hero-n"><t t-if="d.pl.tiles.ebitda.actual !== null"><t t-esc="d.currency"/> </t><t t-esc="moneyParts(d.pl.tiles.ebitda.actual).main"/><small t-esc="moneyParts(d.pl.tiles.ebitda.actual).suffix"/></div>
+        <div class="gh-hero-c"><t t-if="d.pl.tiles.ebitda.budget !== null">vs budget <t t-esc="fmtMoney(d.pl.tiles.ebitda.budget)"/></t><t t-elif="!hasActuals">Map ledger accounts to switch this on.</t><t t-else="">No budget for this version.</t></div>
+      </div>
+    </div>
+    <div class="gh-filters">
+      <div class="gh-f">Version <span class="gh-seg">
+        <t t-foreach="d.versions" t-as="v" t-key="v.id">
+          <button t-att-class="d.version and d.version.id === v.id ? 'on' : ''" t-on-click="() => this.set('versionId', v.id)" t-esc="v.name"/>
+        </t>
+        <button t-if="!d.versions.length" disabled="1">No versions yet</button></span></div>
+      <div class="gh-f">Period <span class="gh-seg">
+        <button t-att-class="state.period === 'month' ? 'on' : ''" t-on-click="() => this.set('period', 'month')">Month</button>
+        <button t-att-class="state.period === 'quarter' ? 'on' : ''" t-on-click="() => this.set('period', 'quarter')">Quarter</button>
+        <button t-att-class="state.period === 'ytd' ? 'on' : ''" t-on-click="() => this.set('period', 'ytd')">YTD</button></span></div>
+      <div class="gh-f">Through
+        <select class="gh-select" t-on-change="onThrough">
+          <t t-foreach="d.through_options" t-as="m" t-key="m">
+            <option t-att-value="m" t-att-selected="d.period.to.slice(0, 7) === m.slice(0, 7)" t-esc="monthName(m)"/>
+          </t>
+        </select></div>
+      <div class="gh-checks">Weekly budget = monthly ÷ days, allocated by day
+        <button class="gh-codes-toggle" t-on-click="() => { this.state.showCodes = !this.state.showCodes; }"><t t-if="state.showCodes">Hide</t><t t-else="">Show</t> KPI codes</button></div>
+    </div>
+
+    <div class="gh-body">
+      <div class="gh-panel-error" t-if="panelError('pl')">P&amp;L failed: <t t-esc="panelError('pl')"/></div>
+      <div>
+        <h2 class="gh-h2">Performance vs plan · <t t-esc="periodName"/></h2>
+        <div class="gh-score">
+          <div class="gh-cl" style="flex:4 1 0" t-if="ok('pl')"><div class="gh-cl-l">Financial</div>
+            <div class="gh-tiles" style="grid-template-columns:repeat(4,minmax(0,1fr))">
+              <t t-foreach="finTiles" t-as="t" t-key="t.code">
+                <button class="gh-tile" disabled="1"><span class="kc" t-esc="t.code"/>
+                  <div class="gh-tile-l" t-esc="t.label"/>
+                  <div class="gh-tile-n"><t t-esc="moneyParts(t.actual).main"/><small t-esc="moneyParts(t.actual).suffix"/></div>
+                  <div class="gh-tile-q"><t t-if="t.budget !== null">vs <t t-esc="fmtMoney(t.budget)"/> · </t><span t-att-class="'st ' + t.pill.cls" t-esc="t.pill.text"/></div></button>
+              </t>
+            </div></div>
+          <div class="gh-cl" style="flex:4 1 0" t-if="ok('operational')"><div class="gh-cl-l">Operational</div>
+            <div class="gh-tiles" style="grid-template-columns:repeat(4,minmax(0,1fr))">
+              <t t-foreach="opsTiles" t-as="t" t-key="t.code">
+                <button class="gh-tile" disabled="1"><span class="kc" t-esc="t.code"/>
+                  <div class="gh-tile-l" t-esc="t.label"/>
+                  <div class="gh-tile-n" t-esc="fmtVal(t.actual, t.unit)"/>
+                  <div class="gh-tile-q"><t t-if="t.budget !== null">vs <t t-esc="fmtVal(t.budget, t.unit)"/> · </t><span t-att-class="'st ' + t.pill.cls" t-esc="t.pill.text"/><t t-if="t.note"><br/><t t-esc="t.note"/></t></div></button>
+              </t>
+            </div></div>
+        </div>
+      </div>
+
+      <div class="gh-panel scrollx" t-if="ok('pl')">
+        <div class="gh-ptitle"><h3 class="gh-h3">Profit &amp; loss: actual vs budget</h3><span style="font:400 12px var(--gh-sans);color:var(--gh-ink-soft)">Click a line to drill into journal items</span></div>
+        <div class="gh-pcap"><t t-esc="d.currency"/> · principal repayments excluded from revenue · variance = (actual − budget) ÷ |budget|</div>
+        <div class="empty" t-if="!hasActuals"><b>Awaiting account mapping</b>Map ledger accounts to P&amp;L lines under Configuration › Account mapping. Lines show "—" until then; nothing is shown as a real zero.</div>
+        <table class="t">
+          <thead><tr><th>Line</th><th class="r">Month actual</th><th class="r">Month budget</th><th class="r">Period actual</th><th class="r">Period budget</th><th class="r">Variance</th><th class="r">Var %</th><th>Status</th></tr></thead>
+          <tbody>
+            <t t-foreach="d.pl.lines" t-as="l" t-key="l.label">
+              <tr t-att-style="l.level === 2 ? 'font-weight:600;border-top:2px solid var(--gh-ink)' : l.level ? 'font-weight:600' : ''" t-on-click="() => this.openLine(l)">
+                <td t-att-style="l.level ? '' : 'padding-left:14px'"><t t-esc="l.label"/><span class="muted" t-if="!l.mapped and l.level !== 2"> · not mapped</span></td>
+                <td class="r" t-esc="fmtMoney(l.month_actual)"/><td class="r" t-esc="fmtMoney(l.month_budget)"/>
+                <td class="r" t-esc="fmtMoney(l.actual)"/><td class="r" t-esc="fmtMoney(l.budget)"/>
+                <td class="r" t-esc="l.variance.abs !== null ? fmtMoney(l.variance.abs) : '—'"/>
+                <td class="r" t-esc="l.variance.pct !== null ? l.variance.pct + '%' : 'n/a'"/>
+                <td><span t-att-class="'st ' + variancePill(l.variance).cls" t-esc="variancePill(l.variance).text"/></td>
+              </tr>
+            </t>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="gh-row" style="grid-template-columns:minmax(0,1.4fr) minmax(0,1fr)">
+        <div class="gh-panel">
+          <h3 class="gh-h3">Revenue: actual vs budget by month</h3>
+          <div class="gh-pcap"><t t-esc="d.currency"/> · same unit, one axis</div>
+          <t t-if="hasActuals and ok('revenue_by_month')">
+            <div class="lg"><span><i class="sw" style="background:var(--gh-slate)"/>Actual</span><span><i class="ln dash" style="border-color:var(--gh-amber)"/>Budget</span></div>
+            <GhChart kind="'bar'" config="revenueChart"/>
+          </t>
+          <div class="empty" t-else=""><b>Awaiting account mapping</b>Revenue accounts are not mapped yet.</div>
+        </div>
+        <div class="gh-mcard" t-if="ok('outlook')">
+          <div class="gh-mhead plum">Year-end outlook · EBITDA</div>
+          <div class="gh-mbody">
+            <div class="wf"><div class="wf-l"><span>Actual YTD</span><span t-esc="fmtMoney(d.outlook.actual_ytd)"/></div><div class="wf-b"><i t-att-style="'width:' + outlookWidth(d.outlook.actual_ytd) + '%;background:var(--gh-slate)'"/></div></div>
+            <div class="wf"><div class="wf-l"><span>Forecast rest of year <span class="st neu">forecast</span></span><span t-esc="fmtMoney(d.outlook.forecast_rest)"/></div>
+              <div class="wf-b"><i t-att-style="'width:' + outlookWidth(d.outlook.forecast_rest) + '%;background:repeating-linear-gradient(45deg,var(--gh-blue-step) 0 4px,#cfe0e6 4px 8px)'"/></div></div>
+            <div class="wf"><div class="wf-l"><span>Approved budget (full year)</span><span t-esc="fmtMoney(d.outlook.approved_full_year)"/></div><div class="wf-b"><i t-att-style="'width:' + outlookWidth(d.outlook.approved_full_year) + '%;background:var(--gh-amber)'"/></div></div>
+            <div class="gh-assume" t-if="!d.outlook.forecast_version">No forecast version yet: create one with kind "Forecast".</div>
+            <div class="gh-fill"/>
+            <div class="tot"><div><div class="tot-l">Year-end outlook</div><div class="tot-c">Actual YTD + forecast version. Not the approved budget</div></div>
+              <div class="tot-n out" t-esc="fmtMoney(d.outlook.outlook)"/></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="gh-row" style="grid-template-columns:minmax(0,1.4fr) minmax(0,1fr)">
+        <div class="gh-panel scrollx" t-if="ok('operational')">
+          <h3 class="gh-h3">Operational KPIs vs plan</h3>
+          <div class="gh-pcap">Portfolio counts use the end-date value, never a cumulative sum</div>
+          <table class="t">
+            <thead><tr><th>KPI</th><th>Basis</th><th class="r">Actual</th><th class="r">Plan</th><th>Status</th></tr></thead>
+            <tbody>
+              <t t-foreach="d.operational.rows" t-as="r" t-key="r_index">
+                <tr><td><span class="muted" t-esc="r.code"/> <t t-esc="r.label"/><t t-if="r.note"> <span class="muted" t-esc="r.note"/></t></td><td><span class="muted" t-esc="r.basis"/></td>
+                  <td class="r" t-esc="fmtVal(r.actual, r.unit)"/><td class="r" t-esc="fmtVal(r.plan, r.unit)"/>
+                  <td><span t-att-class="'st ' + variancePill(r.variance).cls" t-esc="variancePill(r.variance).text"/></td></tr>
+              </t>
+            </tbody>
+          </table>
+        </div>
+        <div class="gh-panel">
+          <div class="gh-ptitle"><h3 class="gh-h3">Budget versions</h3>
+            <a href="#" t-if="d.is_manager" style="font:500 12px var(--gh-sans);color:var(--gh-blue-step)" t-on-click.prevent="() => this.openAction('greenhub_dashboards.action_gh_target_import_wizard')">Import .xlsx →</a></div>
+          <div class="gh-pcap">The original approved version is locked. Revisions create a new version</div>
+          <div class="empty" t-if="!d.versions.length"><b>No versions yet</b>Create one under Configuration › Budget &amp; target versions, then import the .xlsx template.</div>
+          <table class="t" t-else="">
+            <thead><tr><th>Version</th><th>Status</th><th>Approved</th><th class="r">Lines</th></tr></thead>
+            <tbody>
+              <t t-foreach="d.versions" t-as="v" t-key="v.id">
+                <tr t-on-click="() => this.action.doAction({type: 'ir.actions.act_window', res_model: 'gh.kpi.target.version', res_id: v.id, views: [[false, 'form']]})">
+                  <td><b t-if="v.kind === 'original'" t-esc="v.name"/><t t-else="" t-esc="v.name"/><t t-if="v.state === 'approved'"> 🔒</t></td>
+                  <td><span t-if="v.state === 'approved'" class="st fav">✓ Approved</span><span t-else="" class="st neu">Working</span></td>
+                  <td class="muted"><t t-if="v.approved_on"><t t-esc="shortDate(v.approved_on.slice(0, 10))"/> · <t t-esc="v.approved_by"/></t><t t-else="">—</t></td>
+                  <td class="r" t-esc="v.lines"/></tr>
+              </t>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+  </t>
+</div>
+</t>
+</templates>

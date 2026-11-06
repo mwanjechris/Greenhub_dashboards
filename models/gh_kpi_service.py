@@ -81,11 +81,16 @@ class GhKpiService(models.AbstractModel):
         return [{"id": g.id, "name": g.name, "slot": g.color_slot} for g in groups]
 
     # ---------------------------------------------------------- vehicle category
-    def _vehicle_categories(self, vehicles):
-        """Map vehicle id -> category using the ordered rules (first match wins)."""
+    def _vehicle_categories(self, vehicles, state_override=None, on_contract_override=None):
+        """Map vehicle id -> category using the ordered rules (first match wins).
+
+        The overrides let the history service categorise vehicles at a past date.
+        """
         rules = self.env["gh.vehicle.category.rule"].sudo().search([])
         loaner_ids, contract_ids = set(), set()
-        if any(rule.on_active_contract for rule in rules):
+        if on_contract_override is not None:
+            contract_ids = set(on_contract_override)
+        elif any(rule.on_active_contract for rule in rules):
             contract_ids = set(self.env["rider.contract"].sudo().search(
                 [("state", "in", ACTIVE_STATES), ("bike_id", "!=", False)]).mapped("bike_id").ids)
         if any(rule.ongoing_loaner for rule in rules):
@@ -94,9 +99,10 @@ class GhKpiService(models.AbstractModel):
         result = {}
         for vehicle in vehicles:
             category = "other"
+            vstate = state_override.get(vehicle.id) if state_override is not None else vehicle.state
             for rule in rules:
                 states = rule._state_list()
-                if states and vehicle.state not in states:
+                if states and vstate not in states:
                     continue
                 if rule.tag_ids and not (rule.tag_ids & vehicle.tag_ids):
                     continue
@@ -346,6 +352,177 @@ class GhKpiService(models.AbstractModel):
                     snap.value_count or snap.value_float
         return {"periods": [fields.Date.to_string(d) for d in ends], "series": dict(series)}
 
+    # ------------------------------------------------------------------ history
+    def _range_start(self, range_key, grain, on):
+        if range_key == "ytd":
+            return on.replace(month=1, day=1)
+        if range_key == "12m":
+            return on - relativedelta(months=12)
+        return on - timedelta(weeks=26) if grain == "week" else on - relativedelta(months=6)
+
+    def _period_ends(self, grain, date_from=None, date_to=None):
+        domain = [("period_type", "=", grain), ("company_id", "=", self.env.company.id)]
+        if date_from:
+            domain.append(("period_end", ">=", date_from))
+        if date_to:
+            domain.append(("period_end", "<=", date_to))
+        rows = self.env["gh.contract.snapshot"].sudo()._read_group(domain, ["period_end:day"], ["__count"])
+        return sorted(d for d, _n in rows)
+
+    def _active_sets(self, grain, ends, product_group_id=None):
+        domain = [("period_type", "=", grain), ("period_end", "in", ends), ("is_active", "=", True),
+                  ("company_id", "=", self.env.company.id)]
+        if product_group_id:
+            domain.append(("product_group_id", "=", product_group_id))
+        sets, contracts = defaultdict(set), defaultdict(dict)
+        for snap in self.env["gh.contract.snapshot"].sudo().search_read(domain, ["period_end", "rider_id", "contract_id"]):
+            if snap["rider_id"]:
+                sets[snap["period_end"]].add(snap["rider_id"][0])
+                contracts[snap["period_end"]][snap["rider_id"][0]] = snap["contract_id"][0]
+        return sets, contracts
+
+    def _growth_rows(self, grain, product_group_id, limit, date_from=None, date_to=None):
+        all_ends = self._period_ends(grain, None, date_to)
+        if len(all_ends) < 2:
+            return []
+        sets, contracts = self._active_sets(grain, all_ends, product_group_id)
+        Exit = self.env["gh.exit.type.rule"]
+        Contract = self.env["rider.contract"].sudo()
+        seen, rows = set(), []
+        for i, end in enumerate(all_ends):
+            cur = sets.get(end, set())
+            if i == 0:
+                seen |= cur
+                continue
+            prev = sets.get(all_ends[i - 1], set())
+            additions, exits = cur - prev, prev - cur
+            first = {r for r in additions if r not in seen}
+            exit_types = Counter(Exit._exit_type(Contract.browse(contracts[all_ends[i - 1]][r])) for r in exits)
+            seen |= cur
+            if date_from and end < date_from:
+                continue
+            rows.append({
+                "end": fields.Date.to_string(end), "opening": len(prev), "first_time": len(first),
+                "returning": len(additions - first), "exits": len(exits), "closing": len(cur),
+                "exits_planned": exit_types.get("completion", 0) + exit_types.get("upgrade", 0),
+                "exits_default": exit_types.get("repossession_default", 0),
+                "exits_other": exit_types.get("voluntary_return", 0) + exit_types.get("other", 0),
+                "retention": self._pct(len(prev & cur), len(prev)),
+                "ok": len(prev) + len(additions) - len(exits) == len(cur),
+            })
+        return rows[-limit:]
+
+    def _riders_trends(self, on, product_group_id, grain, range_key):
+        config = self.env["gh.dashboard.config"]._get_config()
+        date_from = self._range_start(range_key, grain, on)
+        growth = self._growth_rows(grain, product_group_id, 400, date_from, on)
+        ends = [fields.Date.to_date(g["end"]) for g in growth]
+        # lifetime retention: riders active at the first snapshot on/after history_start
+        all_ends = self._period_ends("week", config.history_start, on)
+        lifetime = None
+        if len(all_ends) >= 2:
+            sets, _c = self._active_sets("week", [all_ends[0], all_ends[-1]], product_group_id)
+            base = sets.get(all_ends[0], set())
+            lifetime = {"pct": self._pct(len(base & sets.get(all_ends[-1], set())), len(base)),
+                        "since": fields.Date.to_string(all_ends[0]), "cohort": len(base)}
+        month_ends = self._period_ends("month", None, on)
+        monthly = None
+        if len(month_ends) >= 2:
+            sets, _c = self._active_sets("month", month_ends[-2:], product_group_id)
+            prev, cur = sets.get(month_ends[-2], set()), sets.get(month_ends[-1], set())
+            monthly = {"pct": self._pct(len(prev & cur), len(prev)), "retained": len(prev & cur),
+                       "cohort": len(prev), "month": fields.Date.to_string(month_ends[-1])}
+        weekly = [g["retention"] for g in growth if g["retention"] is not None]
+        snaps = self.env["gh.kpi.snapshot"].sudo().search([
+            ("period_type", "=", grain), ("period_end", "in", ends), ("company_id", "=", self.env.company.id),
+            ("metric_code", "in", ["R05", "R06"])])
+        demo, unassigned = defaultdict(dict), defaultdict(dict)
+        for snap in snaps:
+            key = fields.Date.to_string(snap.period_end)
+            if snap.metric_code == "R05":
+                demo[key][snap.dim_key.split(":", 1)[1]] = snap.value_count
+            elif snap.dim_key:
+                unassigned[key][snap.dim_key.split(":", 1)[1]] = snap.value_count
+        return {
+            "grain": grain, "range": range_key, "periods": [g["end"] for g in growth],
+            "active": [g["closing"] for g in growth], "growth": growth,
+            "lifetime": lifetime, "monthly": monthly,
+            "weekly_avg": round(sum(weekly) / len(weekly), 1) if weekly else None,
+            "demo": [demo.get(g["end"], {}) for g in growth],
+            "unassigned": [unassigned.get(g["end"], {}) for g in growth],
+            "product_filtered": bool(product_group_id),
+            "assumptions": [
+                _("Past status comes from Odoo's change history; before a contract's first change, its first old value."),
+                _("Unassigned history uses the tracked vehicle state and today's tags."),
+            ],
+        }
+
+    def _riders_core_hist(self, end, product_group_id):
+        """R01-R05, R08 at a past period end, from contract snapshots."""
+        config = self.env["gh.dashboard.config"]._get_config()
+        domain = [("period_type", "=", "week"), ("period_end", "=", end), ("is_active", "=", True),
+                  ("company_id", "=", self.env.company.id)]
+        if product_group_id:
+            domain.append(("product_group_id", "=", product_group_id))
+        snaps = self.env["gh.contract.snapshot"].sudo().search(domain)
+        per_rider = {}
+        for snap in snaps.sorted("contract_id"):
+            if snap.rider_id:
+                per_rider[snap.rider_id.id] = snap
+        riders = self.env["rider"].sudo().browse(list(per_rider))
+        total, limit = len(riders), config.youth_age_limit
+        ages = {r.id: self._age_at(r.date_of_birth, end) for r in riders}
+        def pick(test):
+            return riders.filtered(test)
+        women, men = pick(lambda r: r.gender == "female"), pick(lambda r: r.gender == "male")
+        youth = pick(lambda r: ages[r.id] is not None and ages[r.id] < limit)
+        rows = []
+        used = riders.browse()
+        for key, label, g, young in (("m_u", _("Men under %s", limit), "male", True), ("f_u", _("Women under %s", limit), "female", True),
+                                     ("m_o", _("Men %s+", limit), "male", False), ("f_o", _("Women %s+", limit), "female", False)):
+            members = pick(lambda r: r.gender == g and ages[r.id] is not None and (ages[r.id] < limit) == young)
+            used |= members
+            rows.append({"key": key, "label": label, "count": len(members), "pct": self._pct(len(members), total),
+                         "domain": [("id", "in", members.ids)]})
+        unknown = riders - used
+        rows.append({"key": "unknown", "label": _("Unknown age or gender"), "count": len(unknown),
+                     "pct": self._pct(len(unknown), total), "domain": [("id", "in", unknown.ids)]})
+        groups = self.env["gh.product.group"].sudo().search([])
+        counts = Counter(s.product_group_id.id or UNMAPPED for s in per_rider.values())
+        members = defaultdict(list)
+        for s in per_rider.values():
+            members[s.product_group_id.id or UNMAPPED].append(s.contract_id.id)
+        by_product = [{"group_id": g.id, "label": g.name, "slot": g.color_slot, "count": counts.get(g.id, 0),
+                       "pct": self._pct(counts.get(g.id, 0), total), "domain": [("id", "in", members.get(g.id, []))]}
+                      for g in groups]
+        if counts.get(UNMAPPED):
+            by_product.append({"group_id": False, "label": _("Product not mapped to a group"), "slot": False,
+                               "count": counts[UNMAPPED], "pct": self._pct(counts[UNMAPPED], total),
+                               "domain": [("id", "in", members[UNMAPPED])], "warn": True})
+        running = sum(1 for s in per_rider.values() if s.state == "running")
+        return {
+            "active_riders": {"value": total, "running": running, "paused": total - running,
+                              "domain": [("id", "in", riders.ids)]},
+            "active_contracts": {"value": len(snaps), "domain": [("id", "in", snaps.mapped("contract_id").ids)]},
+            "women": {"value": len(women), "pct": self._pct(len(women), total), "domain": [("id", "in", women.ids)]},
+            "men": {"value": len(men), "pct": self._pct(len(men), total), "domain": [("id", "in", men.ids)]},
+            "youth": {"value": len(youth), "pct": self._pct(len(youth), total), "limit": limit,
+                      "no_dob": sum(1 for a in ages.values() if a is None), "domain": [("id", "in", youth.ids)]},
+            "gender_age": rows, "by_product": by_product,
+            "multi_contract_riders": sorted(r for r, n in Counter(s.rider_id.id for s in snaps if s.rider_id).items() if n > 1),
+        }
+
+    def _as_of(self, as_of):
+        today = self._today()
+        if not as_of:
+            return today, False
+        d = fields.Date.to_date(as_of)
+        return (today, False) if d >= today else (d, True)
+
+    def _as_of_options(self):
+        ends = self._period_ends("week")
+        return [fields.Date.to_string(d) for d in reversed(ends[-26:])]
+
     # ------------------------------------------------------------------ checks
     def _riders_checks(self, core, fleet):
         checks = []
@@ -371,13 +548,17 @@ class GhKpiService(models.AbstractModel):
 
     # ------------------------------------------------------------------ public
     @api.model
-    def get_riders_dashboard(self, product_group_id=None, grain="week"):
-        """Riders & Customers dashboard payload. Live status is as of today."""
+    def get_riders_dashboard(self, product_group_id=None, grain="week", as_of=False, range_key="26w"):
+        """Riders & Customers payload. Today = live; a past week end = snapshots."""
         self._check_access()
-        on = self._today()
+        on, historic = self._as_of(as_of)
         product_group_id = product_group_id or None
-        core = self._panel(self._riders_core, on, product_group_id)
-        fleet = self._panel(self._fleet, on, product_group_id)
+        if historic:
+            core = self._panel(self._riders_core_hist, on, product_group_id)
+            fleet = {"ok": False, "error": "live_only"}
+        else:
+            core = self._panel(self._riders_core, on, product_group_id)
+            fleet = self._panel(self._fleet, on, product_group_id)
         groups = self.env["gh.product.group"].sudo().search([])
         last_snapshot = self.env["gh.kpi.snapshot"].sudo().search(
             [("company_id", "=", self.env.company.id)], order="period_end desc", limit=1)
@@ -390,9 +571,12 @@ class GhKpiService(models.AbstractModel):
             "last_snapshot": fields.Date.to_string(last_snapshot.period_end) if last_snapshot else False,
             "core": core,
             "fleet": fleet,
+            "historic": historic,
+            "as_of_options": self._as_of_options(),
             "referrals": self._panel(self._referrals, on, product_group_id),
-            "safety": self._panel(self._safety, on, product_group_id),
+            "safety": self._panel(self._safety, on, product_group_id) if not historic else {"ok": False, "error": "live_only"},
             "history": self._panel(lambda: self._history(["R01", "R05", "R06"], grain, 26 if grain == "week" else 12)),
+            "trends": self._panel(self._riders_trends, on, product_group_id, grain, range_key),
             "checks": self._riders_checks(core, fleet),
             "is_manager": self.env.user.has_group("greenhub_dashboards.group_gh_dashboard_manager"),
         }

@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <data noupdate="1">
+        <!-- Linked instalments decide first; the app's purpose prefix is the fallback (brief 1, payment.log). -->
+        <record id="gh_pay_rule_inst_lease" model="gh.payment.category.rule">
+            <field name="name">Instalment on a lease-to-own contract</field><field name="sequence">10</field>
+            <field name="category">lease</field><field name="match_type">instalment_lease</field>
+        </record>
+        <record id="gh_pay_rule_inst_rental" model="gh.payment.category.rule">
+            <field name="name">Instalment on a rental contract</field><field name="sequence">20</field>
+            <field name="category">rental</field><field name="match_type">instalment_rental</field>
+        </record>
+        <record id="gh_pay_rule_lease" model="gh.payment.category.rule">
+            <field name="name">Purpose LEASE…</field><field name="sequence">50</field>
+            <field name="category">lease</field><field name="memo_prefix">LEASE</field>
+        </record>
+        <record id="gh_pay_rule_rental" model="gh.payment.category.rule">
+            <field name="name">Purpose RENTAL…</field><field name="sequence">51</field>
+            <field name="category">rental</field><field name="memo_prefix">RENTAL</field>
+        </record>
+        <record id="gh_pay_rule_deposit" model="gh.payment.category.rule">
+            <field name="name">Purpose DEPOSIT…</field><field name="sequence">52</field>
+            <field name="category">deposit</field><field name="memo_prefix">DEPOSIT</field>
+        </record>
+        <record id="gh_pay_rule_swap" model="gh.payment.category.rule">
+            <field name="name">Purpose SWAP…</field><field name="sequence">53</field>
+            <field name="category">swap</field><field name="memo_prefix">SWAP</field>
+        </record>
+        <record id="gh_pay_rule_spare" model="gh.payment.category.rule">
+            <field name="name">Purpose SPARE_PARTS…</field><field name="sequence">54</field>
+            <field name="category">spare_parts</field><field name="memo_prefix">SPARE</field>
+        </record>
+        <record id="gh_pay_rule_late" model="gh.payment.category.rule">
+            <field name="name">Purpose PENALTY / LATE…</field><field name="sequence">55</field>
+            <field name="category">late_fee</field><field name="memo_prefix">PENALT</field>
+        </record>
+        <record id="gh_pay_rule_late2" model="gh.payment.category.rule">
+            <field name="name">Purpose LATE…</field><field name="sequence">56</field>
+            <field name="category">late_fee</field><field name="memo_prefix">LATE</field>
+        </record>
+    </data>
+</odoo>

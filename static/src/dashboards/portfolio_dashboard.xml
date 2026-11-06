@@ -1,0 +1,247 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<templates xml:space="preserve">
+<t t-name="greenhub_dashboards.PortfolioDashboard">
+<div class="gh">
+  <t t-if="state.loading and !state.data"><div class="gh-loading">Loading…</div></t>
+  <t t-elif="state.loadError">
+    <div class="gh-fatal"><h3>Portfolio &amp; Credit Risk failed to load</h3><p t-esc="state.loadError"/>
+      <button t-on-click="() => this.load()">Retry</button></div>
+  </t>
+  <t t-else="">
+  <div t-att-class="state.showCodes ? 'show-codes' : ''">
+    <div class="gh-header">
+      <div class="gh-hl">
+        <div class="gh-eyebrow"><t t-esc="d.company"/> · Green Hub</div>
+        <h1 class="gh-title">Portfolio Health &amp; Credit Risk</h1>
+        <div class="gh-meta">
+          <span class="gh-pill"><span class="gh-dot"/>Live status · trends from weekly snapshots</span>
+          <span class="gh-meta-t">Read at <t t-esc="readAt"/> · amounts in <t t-esc="d.currency"/> ·
+            risk bands in <t t-if="d.band_basis === 'instalments'">weekly-instalment multiples</t><t t-else="">UGX amounts</t></span>
+        </div>
+      </div>
+      <div class="gh-hr" t-if="ok('core')">
+        <div class="gh-logo">GREENHUB<small>DRIVING PROGRESS</small></div>
+        <div class="gh-hero-l">Total arrears</div>
+        <div class="gh-hero-n"><t t-esc="d.currency"/> <t t-esc="heroParts.main"/><small t-esc="heroParts.suffix"/></div>
+        <div class="gh-hero-c">Overdue instalments plus unpaid late fees on <t t-esc="d.core.active_contracts.value"/> active contracts. Future instalments excluded.</div>
+      </div>
+    </div>
+    <div class="gh-filters">
+      <div class="gh-f">As of
+        <select class="gh-select" t-on-change="onAsOf">
+          <option value="" t-att-selected="!state.asOf">Today (live)</option>
+          <t t-foreach="d.as_of_options" t-as="opt" t-key="opt">
+            <option t-att-value="opt" t-att-selected="state.asOf === opt">Week ending <t t-esc="fmtDate(opt)"/></option>
+          </t>
+        </select>
+      </div>
+      <div class="gh-f">Trend <span class="gh-seg">
+        <button t-att-class="state.grain === 'week' ? 'on' : ''" t-on-click="() => this.set('grain', 'week')">Week</button>
+        <button t-att-class="state.grain === 'month' ? 'on' : ''" t-on-click="() => this.set('grain', 'month')">Month</button></span></div>
+      <div class="gh-f">Range <span class="gh-seg">
+        <button t-att-class="state.range === '26w' ? 'on' : ''" t-on-click="() => this.set('range', '26w')"><t t-if="state.grain === 'week'">26 wks</t><t t-else="">6 mo</t></button>
+        <button t-att-class="state.range === 'ytd' ? 'on' : ''" t-on-click="() => this.set('range', 'ytd')">YTD</button>
+        <button t-att-class="state.range === '12m' ? 'on' : ''" t-on-click="() => this.set('range', '12m')">12 mo</button></span></div>
+      <div class="gh-f">Year <span class="gh-seg">
+        <t t-foreach="d.years" t-as="y" t-key="y">
+          <button t-att-class="d.year === y ? 'on' : ''" t-on-click="() => this.set('year', y)" t-esc="y"/>
+        </t></span></div>
+      <div class="gh-f">Product <span class="gh-seg">
+        <button t-att-class="!state.productGroupId ? 'on' : ''" t-on-click="() => this.set('productGroupId', false)">All</button>
+        <t t-foreach="d.product_groups" t-as="g" t-key="g.id">
+          <button t-att-class="state.productGroupId === g.id ? 'on' : ''" t-on-click="() => this.set('productGroupId', g.id)" t-esc="g.name"/>
+        </t></span></div>
+      <div class="gh-checks">
+        <button t-on-click="() => { this.state.showChecks = !this.state.showChecks; }">
+          <t t-if="checksFailed.length"><span class="bad">⚠</span> <t t-esc="checksFailed.length"/> of <t t-esc="d.checks.length"/> checks fail</t>
+          <t t-else=""><span class="ok">✓</span> Risk &amp; PAR each sum to <t t-esc="d.core.active_contracts ? d.core.active_contracts.value : 0"/> · matches Riders</t>
+        </button>
+        <button class="gh-codes-toggle" t-on-click="() => { this.state.showCodes = !this.state.showCodes; }"><t t-if="state.showCodes">Hide</t><t t-else="">Show</t> KPI codes</button>
+      </div>
+    </div>
+    <div class="gh-check-list" t-if="state.showChecks">
+      <t t-foreach="d.checks" t-as="c" t-key="c.code"><div><t t-if="c.ok">✓</t><t t-else="">⚠</t> <b t-esc="c.code"/> · <t t-esc="c.message"/></div></t>
+    </div>
+
+    <div class="gh-body">
+      <div class="gh-panel-error" t-if="d.historic" style="background:#F5EBDA;color:#8A5A12">
+        Showing the week ending <t t-esc="fmtDate(d.as_of)"/> from snapshots. Past arrears are reconstructed from instalments; late fees and credit are not.
+      </div>
+      <div class="gh-panel-error" t-if="panelError('core')">Portfolio KPIs failed: <t t-esc="panelError('core')"/></div>
+      <t t-if="ok('core')">
+      <div>
+        <h2 class="gh-h2">Portfolio at a glance</h2>
+        <div class="gh-score">
+          <div class="gh-cl" style="flex:3 1 0"><div class="gh-cl-l">Portfolio</div>
+            <div class="gh-tiles" style="grid-template-columns:repeat(3,minmax(0,1fr))">
+              <button class="gh-tile" t-on-click="() => this.open('rider.contract', d.core.active_contracts.domain, 'Active contracts')"><span class="kc">P01</span>
+                <div class="gh-tile-l">Active contracts</div><div class="gh-tile-n" t-esc="fmtInt(d.core.active_contracts.value)"/>
+                <div class="gh-tile-q">Running <t t-esc="d.core.active_contracts.running"/> · Paused <t t-esc="d.core.active_contracts.paused"/></div></button>
+              <button class="gh-tile" t-on-click="() => this.open('rider.contract', d.core.total_arrears.domain, 'Contracts in arrears')"><span class="kc">P02</span>
+                <div class="gh-tile-l">Total arrears</div>
+                <div class="gh-tile-n"><t t-esc="moneyParts(d.core.total_arrears.value).main"/><small t-esc="moneyParts(d.core.total_arrears.value).suffix"/></div>
+                <div class="gh-tile-q">incl. late fees <b t-esc="fmtInt(d.core.total_arrears.late_fees)"/></div></button>
+              <button class="gh-tile" disabled="1"><span class="kc">P03</span>
+                <div class="gh-tile-l">Avg arrears / contract</div><div class="gh-tile-n" t-esc="fmtInt(d.core.avg_arrears.value)"/>
+                <div class="gh-tile-q">zero-arrears contracts included</div></button>
+            </div></div>
+          <div class="gh-cl" style="flex:2 1 0"><div class="gh-cl-l">Credit</div>
+            <div class="gh-tiles" style="grid-template-columns:repeat(2,minmax(0,1fr))">
+              <button class="gh-tile" t-on-click="() => this.open('rider.contract', d.core.credit.domain, 'Contracts with credit')"><span class="kc">P05</span>
+                <div class="gh-tile-l">Total rider credit</div>
+                <div class="gh-tile-n good"><t t-esc="moneyParts(d.core.credit.value).main"/><small t-esc="moneyParts(d.core.credit.value).suffix"/></div>
+                <div class="gh-tile-q">advance balances, not netted · <t t-esc="d.core.credit.count"/> contracts</div></button>
+              <button class="gh-tile" t-on-click="() => this.open('rider.contract', d.core.perfect.domain, 'Perfect payment history')"><span class="kc">P10</span>
+                <div class="gh-tile-l">Perfect payment history</div>
+                <div class="gh-tile-n"><t t-esc="d.core.perfect.pct !== null ? Math.round(d.core.perfect.pct) : '—'"/><small>%</small></div>
+                <div class="gh-tile-q"><t t-esc="d.core.perfect.value"/> of <t t-esc="d.core.active_contracts.value"/> never charged a late fee</div></button>
+            </div></div>
+          <div class="gh-cl" style="flex:4 1 0"><div class="gh-cl-l">Risk</div>
+            <div class="gh-tiles" style="grid-template-columns:repeat(4,minmax(0,1fr))">
+              <button class="gh-tile" t-on-click="() => this.open('rider.contract', d.core.ahead_ontrack.domain, 'Ahead and on track')"><span class="kc">P06</span>
+                <div class="gh-tile-l">Ahead &amp; on track</div><div class="gh-tile-n good" t-esc="d.core.ahead_ontrack.value"/><div class="gh-tile-q" t-esc="fmtPct(d.core.ahead_ontrack.pct)"/></button>
+              <button class="gh-tile" t-on-click="() => this.open('rider.contract', d.core.behind.domain, 'Behind')"><span class="kc">P07</span>
+                <div class="gh-tile-l">Behind</div><div class="gh-tile-n warn" t-esc="d.core.behind.value"/><div class="gh-tile-q"><t t-esc="fmtPct(d.core.behind.pct)"/> · not critical</div></button>
+              <button class="gh-tile" t-on-click="() => this.open('rider.contract', d.core.in_default.domain, 'In default')"><span class="kc">P08</span>
+                <div class="gh-tile-l">In default</div><div class="gh-tile-n crit" t-esc="d.core.in_default.value"/><div class="gh-tile-q">running or paused</div></button>
+              <button class="gh-tile" t-on-click="() => this.open('rider.contract', d.core.critical_default.domain, 'Critical and default')"><span class="kc">P09</span>
+                <div class="gh-tile-l">Critical + default</div><div class="gh-tile-n crit" t-esc="d.core.critical_default.value"/><div class="gh-tile-q"><t t-esc="fmtPct(d.core.critical_default.pct)"/> of portfolio</div></button>
+            </div></div>
+        </div>
+      </div>
+
+      <div class="gh-row" style="grid-template-columns:minmax(0,1fr) minmax(0,1fr)">
+        <div class="gh-panel"><span class="kc">P11</span>
+          <h3 class="gh-h3">Portfolio risk distribution</h3>
+          <div class="gh-pcap">Active contracts by payment status and arrears<t t-if="d.band_basis === 'instalments'"> in weekly instalments (×)</t></div>
+          <GhChart kind="'stack100'" config="riskBar"/>
+          <table class="t" style="margin-top:12px">
+            <thead><tr><th>Category</th><th>Rule</th><th class="r">Contracts</th><th class="r">%</th></tr></thead>
+            <tbody>
+              <t t-foreach="d.core.risk" t-as="r" t-key="r.key">
+                <tr t-on-click="() => this.open('rider.contract', r.domain, r.label)"><td><i class="sw" t-att-style="'background:' + riskColor(r.key)"/><t t-esc="r.label"/></td>
+                  <td><span class="muted" t-esc="r.rule"/></td><td class="r" t-esc="r.count"/><td class="r" t-esc="fmtPct(r.pct)"/></tr>
+              </t>
+              <tr class="total"><td>Total</td><td/><td class="r" t-esc="d.core.active_contracts.value"/><td class="r">100%</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="gh-panel"><span class="kc">P12</span>
+          <h3 class="gh-h3">Portfolio at risk (PAR)</h3>
+          <div class="gh-pcap">Active contracts by days past due on the oldest unpaid instalment</div>
+          <GhChart kind="'stack100'" config="parBar"/>
+          <table class="t" style="margin-top:12px">
+            <thead><tr><th>Bucket</th><th>Days past due</th><th class="r">Contracts</th><th class="r">%</th><th class="r">Arrears <t t-esc="d.currency"/></th></tr></thead>
+            <tbody>
+              <t t-foreach="d.core.par" t-as="r" t-key="r.key">
+                <tr t-on-click="() => this.open('rider.contract', r.domain, r.label)"><td><i class="sw" t-att-style="'background:' + parColor(r.key)"/><t t-esc="r.label"/></td>
+                  <td><span class="muted" t-esc="r.rule"/></td><td class="r" t-esc="r.count"/><td class="r" t-esc="fmtPct(r.pct)"/><td class="r" t-esc="fmtInt(r.arrears)"/></tr>
+              </t>
+              <tr class="total"><td>Total</td><td/><td class="r" t-esc="d.core.active_contracts.value"/><td class="r">100%</td><td class="r" t-esc="fmtInt(d.core.total_arrears.value)"/></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+      </t>
+
+      <!-- shared default block -->
+      <div>
+        <div class="gh-sechead"><h2 class="gh-h2">Defaults &amp; losses</h2><span style="font:400 12px var(--gh-sans);color:var(--gh-ink-soft)">Shared block, also shown on Collections &amp; Payments</span></div>
+        <div class="gh-panel-error" t-if="panelError('defaults')">Default block failed: <t t-esc="panelError('defaults')"/></div>
+        <div class="gh-row" style="grid-template-columns:minmax(0,1.4fr) minmax(0,1fr) minmax(0,.9fr)" t-if="ok('defaults')">
+          <div class="gh-mcard"><span class="kc">P13–P15</span>
+            <div class="gh-mhead out">Default position · <t t-esc="d.defaults.year"/></div>
+            <div class="gh-mbody">
+              <div class="wf"><div class="wf-l"><span>Current default rate</span><span><t t-esc="fmtPct(d.defaults.rate.value)"/> <span style="font-size:12px;color:var(--gh-ink-soft)">(<t t-esc="d.defaults.rate.count"/> of <t t-esc="d.defaults.rate.of"/>)</span></span></div>
+                <div class="wf-b"><i t-att-style="'width:' + (d.defaults.rate.value || 0) + '%;background:var(--gh-red);min-width:4px'"/></div></div>
+              <div class="wf"><div class="wf-l"><span>Current arrears in default</span><span t-esc="fmtInt(d.defaults.arrears_in_default)"/></div>
+                <div class="wf-b"><i t-att-style="'width:' + Math.min(100, d.core.total_arrears ? 100 * d.defaults.arrears_in_default / Math.max(d.core.total_arrears.value + d.defaults.arrears_in_default, 1) : 0) + '%;background:var(--gh-red)'"/></div></div>
+              <div class="wf"><div class="wf-l"><span>Avg monthly default loss</span><span t-esc="d.defaults.avg_monthly_loss !== null ? fmtInt(d.defaults.avg_monthly_loss) : '—'"/></div>
+                <div class="wf-b"><i style="width:0"/></div></div>
+              <div class="gh-assume">Definition: <t t-esc="d.defaults.scope_label"/>. Green Hub to confirm.</div>
+              <div class="gh-fill"/>
+              <div class="tot"><div><div class="tot-l">Default losses YTD</div><div class="tot-c">Written off 1 Jan – <t t-esc="fmtDate(d.as_of)"/> · <t t-esc="d.defaults.months_elapsed"/> months</div></div>
+                <div class="tot-n out" t-esc="d.defaults.losses_ytd !== null ? fmtInt(d.defaults.losses_ytd) : '—'"/></div>
+            </div>
+          </div>
+          <div class="gh-panel"><span class="kc">P16 · P17</span>
+            <h3 class="gh-h3">Monthly default losses</h3>
+            <div class="gh-pcap">UGX written off · label = loss as % of recognised revenue</div>
+            <t t-if="d.defaults.loss_accounts_mapped"><GhChart kind="'bar'" config="lossChart"/></t>
+            <div class="empty" t-else=""><b>Awaiting account mapping</b>Map the write-off accounts under Configuration › Account mapping (role: Default losses).</div>
+          </div>
+          <div class="gh-panel" t-if="ok('repossessions')"><span class="kc">P20</span>
+            <h3 class="gh-h3">Repossession → refinancing</h3>
+            <div class="gh-pcap">Days from repossession to the next contract on the same bike · <t t-esc="d.year"/></div>
+            <div class="empty" t-if="!d.repossessions.exit_rules"><b>Awaiting exit types</b>Map closure reasons under Configuration › Exit types.</div>
+            <t t-else="">
+              <div class="gh-tiles" style="grid-template-columns:1fr 1fr;gap:10px">
+                <div><div class="gh-tile-l">Average</div><div class="gh-tile-n"><t t-esc="d.repossessions.avg_days ?? '—'"/><small> d</small></div></div>
+                <div><div class="gh-tile-l">Median</div><div class="gh-tile-n"><t t-esc="d.repossessions.median_days ?? '—'"/><small> d</small></div></div>
+              </div>
+              <table class="t" style="margin-top:14px"><tbody>
+                <tr t-on-click="() => this.open('rider.contract', d.repossessions.domain, 'Repossessions')"><td>Repossessed bikes (<t t-esc="d.year"/>)</td><td class="r"><b t-esc="d.repossessions.repossessed"/></td></tr>
+                <tr><td>Refinanced</td><td class="r" t-esc="d.repossessions.refinanced"/></tr>
+                <tr t-on-click="() => this.open('fleet.vehicle', d.repossessions.waiting_domain, 'Waiting for refinancing')"><td>Still waiting</td><td class="r"><span class="st wrn">● <t t-esc="d.repossessions.waiting"/></span></td></tr>
+              </tbody></table>
+            </t>
+          </div>
+        </div>
+      </div>
+
+      <div class="gh-row" style="grid-template-columns:minmax(0,1fr) minmax(0,1fr)">
+        <div class="gh-panel"><span class="kc">P18</span>
+          <h3 class="gh-h3">Default rate trend</h3>
+          <div class="gh-pcap">From default-tracking events · per month</div>
+          <t t-if="ok('default_trend') and d.default_trend.rows.length >= 2">
+            <div class="lg"><span><i class="ln" style="border-color:var(--gh-red)"/>New defaults</span><span><i class="ln dash" style="border-color:var(--gh-slate)"/>Outstanding at period end</span></div>
+            <GhChart kind="'line'" config="defaultTrend"/>
+          </t>
+          <div class="empty" t-else=""><b>Awaiting month-end history</b>Needs at least two month-end snapshots.</div>
+        </div>
+        <div class="gh-panel"><span class="kc">P21</span>
+          <h3 class="gh-h3">Arrears recovery</h3>
+          <div class="gh-pcap">Opening arrears recovered during the month (<t t-esc="d.currency"/>)</div>
+          <table class="t" t-if="ok('recovery') and d.recovery.rows.length">
+            <thead><tr><th>Month</th><th class="r">Opening</th><th class="r">Closing</th><th class="r">Recovered from opening</th><th>Recovery %</th></tr></thead>
+            <tbody>
+              <t t-foreach="d.recovery.rows" t-as="r" t-key="r.month">
+                <tr><td t-esc="r.month"/><td class="r" t-esc="fmtMoney(r.opening)"/><td class="r" t-esc="fmtMoney(r.closing)"/><td class="r" t-esc="fmtMoney(r.recovered)"/>
+                  <td><span style="display:flex;align-items:center;gap:8px"><span class="minibar" style="flex:1"><i t-att-style="'width:' + Math.max(2, r.pct || 0) + '%;background:var(--gh-green)'"/></span><span class="muted" t-esc="fmtPct(r.pct)"/></span></td></tr>
+              </t>
+            </tbody>
+          </table>
+          <div class="empty" t-else=""><b>Awaiting month-end history</b>Needs two consecutive month-end snapshots.</div>
+        </div>
+      </div>
+
+      <div class="gh-row" style="grid-template-columns:minmax(0,1fr) minmax(0,1fr)">
+        <div class="gh-panel"><span class="kc">P22</span>
+          <h3 class="gh-h3">Total arrears over time</h3>
+          <div class="gh-pcap"><t t-esc="d.currency"/> at each period end</div>
+          <t t-if="hasTrend"><GhChart kind="'line'" config="arrearsChart"/></t>
+          <div class="empty" t-else=""><b>Awaiting history</b>Run the history backfill.</div>
+        </div>
+        <div class="gh-panel"><span class="kc">P22</span>
+          <h3 class="gh-h3">Average arrears per active contract</h3>
+          <div class="gh-pcap"><t t-esc="d.currency"/> at each period end. Separate chart, not a second axis</div>
+          <t t-if="hasTrend"><GhChart kind="'line'" config="avgArrearsChart"/></t>
+          <div class="empty" t-else=""><b>Awaiting history</b>Run the history backfill.</div>
+        </div>
+      </div>
+      <div class="gh-panel" t-if="ok('core')"><span class="kc">P22</span>
+        <h3 class="gh-h3">Risk distribution over time</h3>
+        <div class="gh-pcap">Share of active contracts by risk category at each period end</div>
+        <t t-if="hasTrend">
+          <div class="lg"><t t-foreach="d.core.risk" t-as="r" t-key="r.key"><span><i class="sw" t-att-style="'background:' + riskColor(r.key)"/><t t-esc="r.label"/></span></t></div>
+          <GhChart kind="'stackCols100'" config="riskTrend"/>
+        </t>
+        <div class="empty" t-else=""><b>Awaiting history</b>Run the history backfill.</div>
+        <div class="gh-assume">Past arrears are rebuilt from instalments still unpaid today; receipts aren't linked to instalments, so late payers' past arrears are understated.</div>
+      </div>
+    </div>
+  </div>
+  </t>
+</div>
+</t>
+</templates>

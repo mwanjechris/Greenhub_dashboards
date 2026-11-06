@@ -33,4 +33,25 @@
         <field name="model_id" ref="model_gh_dashboard_config"/>
         <field name="domain_force">[('company_id', 'in', company_ids)]</field>
     </record>
+
+    <record id="rule_gh_contract_snapshot_company" model="ir.rule">
+        <field name="name">gh.contract.snapshot: own companies</field>
+        <field name="model_id" ref="model_gh_contract_snapshot"/>
+        <field name="domain_force">[('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_gh_account_mapping_company" model="ir.rule">
+        <field name="name">gh.account.mapping: own companies</field>
+        <field name="model_id" ref="model_gh_account_mapping"/>
+        <field name="domain_force">[('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_gh_kpi_target_version_company" model="ir.rule">
+        <field name="name">gh.kpi.target.version: own companies</field>
+        <field name="model_id" ref="model_gh_kpi_target_version"/>
+        <field name="domain_force">[('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_gh_financing_facility_company" model="ir.rule">
+        <field name="name">gh.financing.facility: own companies</field>
+        <field name="model_id" ref="model_gh_financing_facility"/>
+        <field name="domain_force">[('company_id', 'in', company_ids)]</field>
+    </record>
 </odoo>

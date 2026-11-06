@@ -142,3 +142,15 @@
 .gh .tip i{display:inline-block;width:9px;height:9px;border-radius:2px}
 @media (max-width:1200px){.gh .gh-score{flex-direction:column}.gh .gh-row{grid-template-columns:1fr!important}.gh .gh-header{flex-direction:column;align-items:flex-start}.gh .gh-hr{border-left:0;padding-left:0;text-align:left}.gh .gh-hero-c{margin-left:0}}
 @media (max-width:700px){.gh .gh-panel{overflow-x:auto}.gh .gh-header,.gh .gh-filters,.gh .gh-body{padding-left:16px;padding-right:16px}.gh .gh-tiles{grid-template-columns:1fr 1fr!important}.gh .gh-title{font-size:28px}.gh .gh-hero-n{font-size:34px}.gh .scrollx{overflow-x:auto}}
+/* chart tooltip: appended to <body>, so it can't sit under .gh */
+.gh-tip{position:fixed;z-index:1100;pointer-events:none;background:#16242B;color:#fff;border-radius:7px;padding:8px 10px;font:400 12px/1.45 "IBM Plex Sans",sans-serif;box-shadow:0 6px 20px rgba(0,0,0,.18);opacity:0;transition:opacity .08s;max-width:280px}
+.gh-tip b{font-weight:600} .gh-tip .row{display:flex;justify-content:space-between;gap:14px} .gh-tip .k{display:inline-flex;align-items:center;gap:6px;color:#CFE3E8}
+.gh-tip i{display:inline-block;width:9px;height:9px;border-radius:2px}
+/* KPI code chips must not cover the tile label */
+.gh .show-codes .gh-tile-l{padding-right:34px}
+.gh .show-codes .gh-ptitle,.gh .show-codes .gh-panel > .gh-h3{padding-right:56px}
+.gh .gh-select{background:#16242B;border:1px solid var(--gh-dark-rule);border-radius:7px;padding:4px 8px;font:500 12px var(--gh-sans);color:#fff}
+.gh .gh-assume{font:400 11px var(--gh-sans);color:var(--gh-ink-soft);margin-top:8px}
+.gh .gh-tabs{display:flex;gap:6px;margin-left:auto}
+.gh .gh-input{background:#16242B;border:1px solid var(--gh-dark-rule);border-radius:7px;padding:3px 6px;font:500 12px var(--gh-sans);color:#fff;color-scheme:dark}
+.gh .gh-f{white-space:nowrap}

@@ -4,4 +4,16 @@
         <field name="name">Riders &amp; Customers</field>
         <field name="tag">gh_dashboards.riders</field>
     </record>
+    <record id="action_gh_portfolio_dashboard" model="ir.actions.client">
+        <field name="name">Portfolio &amp; Credit Risk</field>
+        <field name="tag">gh_dashboards.portfolio</field>
+    </record>
+    <record id="action_gh_collections_dashboard" model="ir.actions.client">
+        <field name="name">Collections &amp; Payments</field>
+        <field name="tag">gh_dashboards.collections</field>
+    </record>
+    <record id="action_gh_budget_dashboard" model="ir.actions.client">
+        <field name="name">Budget &amp; Performance</field>
+        <field name="tag">gh_dashboards.budget</field>
+    </record>
 </odoo>
