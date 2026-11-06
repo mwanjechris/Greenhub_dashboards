@@ -167,3 +167,20 @@ class TestRidersKpis(TransactionCase):
         snaps = Snapshot.search([("metric_code", "=", "R01"), ("period_end", "=", end), ("period_type", "=", "week")])
         self.assertEqual(len(snaps), 1)
         self.assertEqual(snaps.value_count, 9)
+
+    def test_referrals_prefer_utm_source(self):
+        self._fixture_only()
+        utm = self.env["utm.source"].create({"name": "Fixture referral"})
+        self.r_young_f.source_id = utm
+        self.r_old_m.source_of_information = "friend"
+        ref = self.service._referrals(self.today, None)
+        labels = {r["label"]: r["count"] for r in ref["rows"]}
+        self.assertEqual(labels.get("Fixture referral"), 1)
+        self.assertEqual(labels.get("Friend/Referral"), 1)
+
+    def test_archived_product_still_maps(self):
+        self._fixture_only()
+        self.product_a.active = False
+        core = self.service._riders_core(self.today, None)
+        rows = {r["label"]: r["count"] for r in core["by_product"]}
+        self.assertEqual(rows["Group A"], 2, "contracts on an archived product keep their group")

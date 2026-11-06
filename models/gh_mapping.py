@@ -41,11 +41,11 @@ class GhProductGroup(models.Model):
     color_slot = fields.Selection(COLOR_SLOTS, default="s4", required=True)
     company_id = fields.Many2one("res.company", default=lambda self: self.env.company)
     product_ids = fields.Many2many(
-        "product.product", string="Contract products",
+        "product.product", string="Contract products", context={"active_test": False},
         help="Contracts whose product is in this list belong to this group.",
     )
     vehicle_model_ids = fields.Many2many(
-        "fleet.vehicle.model", string="Vehicle models",
+        "fleet.vehicle.model", string="Vehicle models", context={"active_test": False},
         help="Vehicles of these models belong to this group.",
     )
 
@@ -54,7 +54,9 @@ class GhProductGroup(models.Model):
         """Return (product_id -> group, model_id -> group, groups)."""
         groups = self.sudo().search([])
         by_product, by_model = {}, {}
-        for group in groups:
+        # Archived products and models still sit on live contracts and vehicles,
+        # so the mapping must see them.
+        for group in groups.with_context(active_test=False):
             for product in group.product_ids:
                 by_product.setdefault(product.id, group)
             for model in group.vehicle_model_ids:

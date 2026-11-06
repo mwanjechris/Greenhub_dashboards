@@ -261,14 +261,23 @@ class GhKpiService(models.AbstractModel):
             by_product, _m, _g = self.env["gh.product.group"]._group_maps()
             contracts = contracts.filtered(lambda c: by_product.get(c.product_product_id.id)
                                            and by_product[c.product_product_id.id].id == product_group_id)
+        # Green Hub records the source on the rider's UTM source; the older
+        # selection field is the fallback for riders captured before that.
         labels = dict(self.env["rider"]._fields["source_of_information"]._description_selection(self.env))
         buckets = defaultdict(list)
         for contract in contracts:
-            buckets[contract.rider_id.source_of_information or False].append(contract.id)
+            rider = contract.rider_id
+            if rider.source_id:
+                label = rider.source_id.name
+            elif rider.source_of_information:
+                label = labels.get(rider.source_of_information, rider.source_of_information)
+            else:
+                label = _("Not recorded")
+            buckets[label].append(contract.id)
         total = len(contracts)
         rows = sorted(
-            [{"label": labels.get(key, _("Not recorded")) if key else _("Not recorded"), "count": len(ids),
-              "pct": self._pct(len(ids), total), "domain": [("id", "in", ids)]} for key, ids in buckets.items()],
+            [{"label": label, "count": len(ids), "pct": self._pct(len(ids), total),
+              "domain": [("id", "in", ids)]} for label, ids in buckets.items()],
             key=lambda r: -r["count"])
         return {"weeks": config.referral_window_weeks, "total": total, "rows": rows}
 
