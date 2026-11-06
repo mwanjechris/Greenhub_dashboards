@@ -44,7 +44,8 @@ export class RidersDashboard extends GhDashboardBase {
         const low = present.length ? Math.max(0, Math.floor((Math.min(...present) - 2) / 5) * 5) : 80;
         return { labels: this.labels, h: 150, yMin: low, yMax: 100, yFmt: (v) => v.toFixed(0) + "%",
                  tipFmt: (v) => v.toFixed(1) + "%",
-                 series: [{ name: `${this.state.grain === "week" ? "Weekly" : "Monthly"} retention`, values: vals, color: "--gh-green" }] };
+                 series: [{ name: `${this.state.grain === "week" ? "Weekly" : "Monthly"} retention`, values: vals, color: "--gh-green" }],
+                 onClick: (i) => this.growth(this.t.growth[i].end, "retained", "Retained riders") };
     }
 
     get growthChart() {
@@ -53,7 +54,10 @@ export class RidersDashboard extends GhDashboardBase {
             { name: "First-time riders", values: g.map((r) => r.first_time), color: "--s-zembo" },
             { name: "Returning riders", values: g.map((r) => r.returning), color: "--s-niu" },
             { name: "Exits", values: g.map((r) => r.exits), color: "--s-4" },
-        ] };
+        ], onClick: (i, j) => {
+            const part = ["first_time", "returning", "exits"][j ?? 0];
+            return this.growth(g[i].end, part, { first_time: "First-time riders", returning: "Returning riders", exits: "Exits" }[part]);
+        } };
     }
 
     get growthRows() {
@@ -70,6 +74,7 @@ export class RidersDashboard extends GhDashboardBase {
                 { name: `Men ${limit}+`, color: "--s-niu" }, { name: `Women ${limit}+`, color: "--s-4" },
             ],
             data: this.t.demo.map((d) => keys.map((k) => d[k] || 0)),
+            onClick: (i) => this.growth(this.t.growth[i].end, "closing", "Active riders"),
         };
     }
 
@@ -77,11 +82,22 @@ export class RidersDashboard extends GhDashboardBase {
         return { labels: this.labels, h: 190, stacked: true, series: [
             { name: "New (never contracted)", values: this.t.unassigned.map((u) => u.new || 0), color: "--s-zembo" },
             { name: "Re-financing", values: this.t.unassigned.map((u) => u.refinancing || 0), color: "--s-niu" },
-        ] };
+        ], onClick: (i) => this.drill("kpi_snapshots", { metric_codes: ["R06"], period_type: this.state.grain,
+                                                         period_end: this.t.periods[i], label: "Unassigned e-bodas" }) };
     }
 
     licenceCount(key) {
         return this.d.safety.licences.counts[key];
+    }
+
+    growth(end, part, label, since) {
+        return this.drill("growth", { grain: this.state.grain, period_end: end, part, label, since: since || false,
+                                      product_group_id: this.state.productGroupId || false });
+    }
+
+    retention(grain, since, end, label) {
+        return this.drill("growth", { grain, period_end: end, part: "retained", since, label,
+                                      product_group_id: this.state.productGroupId || false });
     }
 
     openRider(riderId) {

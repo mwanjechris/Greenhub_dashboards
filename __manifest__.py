@@ -17,6 +17,7 @@
         "data/cron.xml",
         "views/config_views.xml",
         "views/snapshot_views.xml",
+        "views/drill_views.xml",
         "views/config2_views.xml",
         "views/dashboard_actions.xml",
         "views/menus.xml",

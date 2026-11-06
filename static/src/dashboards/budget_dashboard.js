@@ -31,7 +31,8 @@ export class BudgetDashboard extends GhDashboardBase {
 
     tile(code, label, t, unit = "money") {
         const v = t.var || {};
-        return { code, label, actual: t.actual, budget: t.budget, v, pill: this.variancePill(v, t.budget, t.actual), unit };
+        return { code, label, actual: t.actual, budget: t.budget, v, pill: this.variancePill(v, t.budget, t.actual), unit,
+                 drill: t.drill, plan_drill: t.plan_drill };
     }
 
     get finTiles() {
@@ -46,10 +47,13 @@ export class BudgetDashboard extends GhDashboardBase {
         const sumRows = (rs) => ({ actual: rs.reduce((a, r) => a + (r.actual || 0), 0),
                                    plan: rs.every((r) => r.plan === null) ? null : rs.reduce((a, r) => a + (r.plan || 0), 0) });
         const fleet = sumRows(pick("B09"));
+        fleet.drill = { kind: "fleet_cell", args: { category: "on_contract", label: "Vehicles on contract" } };
+        fleet.plan_drill = { kind: "targets", args: { version_id: this.d.version ? this.d.version.id : false, metrics: ["B09"], point_on: this.d.as_of, label: "Fleet deployment plan" } };
         const out = [];
-        for (const r of [pick("B07")[0], pick("B08")[0], { code: "B09", label: "Fleet deployed", actual: fleet.actual, plan: fleet.plan, direction: "up", unit: "count" }, pick("B10")[0]]) {
+        for (const r of [pick("B07")[0], pick("B08")[0], { code: "B09", label: "Fleet deployed", actual: fleet.actual, plan: fleet.plan, direction: "up", unit: "count", drill: fleet.drill, plan_drill: fleet.plan_drill }, pick("B10")[0]]) {
             const v = r.variance || this.localVariance(r.actual, r.plan, r.direction);
-            out.push({ code: r.code, label: r.label, actual: r.actual, budget: r.plan, v, pill: this.variancePill(v, r.plan, r.actual), unit: r.unit, note: r.note });
+            out.push({ code: r.code, label: r.label, actual: r.actual, budget: r.plan, v, pill: this.variancePill(v, r.plan, r.actual), unit: r.unit, note: r.note,
+                       drill: r.drill, plan_drill: r.plan_drill });
         }
         return out;
     }
@@ -73,7 +77,8 @@ export class BudgetDashboard extends GhDashboardBase {
         const rows = this.d.revenue_by_month.rows;
         return { labels: rows.map((r) => r.month), h: 200, yFmt: (v) => this.fmtMoney(v), tipFmt: (v) => this.fmtInt(v),
                  targets: rows.map((r) => r.budget), targetStyle: { name: "Budget", color: getComputedStyle(document.body).getPropertyValue("--gh-amber") || "#B0751A", dash: "4 3" },
-                 series: [{ name: "Actual", values: rows.map((r) => r.actual || 0), color: "--gh-slate" }] };
+                 series: [{ name: "Actual", values: rows.map((r) => r.actual || 0), color: "--gh-slate" }],
+                 onClick: (i) => this.go(rows[i].drill) };
     }
 
     get hasActuals() {
@@ -87,9 +92,7 @@ export class BudgetDashboard extends GhDashboardBase {
     }
 
     openLine(line) {
-        if (line.domain) {
-            this.open("account.move.line", line.domain, line.label);
-        }
+        this.go(line.drill);
     }
 }
 

@@ -88,6 +88,7 @@ class GhKpiServiceCollections(models.AbstractModel):
             available_due = sum(standard.get(by_model[v.model_id.id].id, 0.0) for v in available
                                 if by_model.get(v.model_id.id)) * weeks
         return {"month": month_end.strftime("%B %Y"), "collected": collected, "due": due,
+                "from": fields.Date.to_string(start), "to": fields.Date.to_string(month_end),
                 "active_rate": self._pct(collected, due),
                 "fleet_rate": self._pct(collected, due + available_due), "available": available_count,
                 "available_due": available_due}
@@ -124,7 +125,8 @@ class GhKpiServiceCollections(models.AbstractModel):
             buckets[week][1] += amount * rate
         for i in range(config.forecast_weeks):
             ws = start + timedelta(weeks=i)
-            weeks.append({"week": ws.strftime("%d %b"), "contractual": buckets[i][0], "risk_adjusted": buckets[i][1]})
+            weeks.append({"week": ws.strftime("%d %b"), "contractual": buckets[i][0], "risk_adjusted": buckets[i][1],
+                          "from": fields.Date.to_string(ws), "to": fields.Date.to_string(ws + timedelta(days=6))})
         return {"weeks": weeks, "rates": {k: round(v * 100, 1) if v is not None else None for k, v in rates.items()},
                 "window": config.rate_window_weeks, "rates_complete": not missing_rate,
                 "schedule_horizon": max((l.due_date for l in lines), default=None) and
@@ -143,7 +145,9 @@ class GhKpiServiceCollections(models.AbstractModel):
             logs = self._logs(start, stop, product_group_id)
             collected = sum(l.amount for l in logs if classify(l) in INSTALMENT_CATEGORIES)
             due = sum(self._due(start, end, contracts).mapped("amount"))
-            out.append({"month": start.strftime("%b"), "collected": collected, "due": due, "pct": self._pct(collected, due)})
+            out.append({"month": start.strftime("%b"), "collected": collected, "due": due, "pct": self._pct(collected, due),
+                        "from": fields.Date.to_string(start), "to": fields.Date.to_string(stop),
+                        "due_to": fields.Date.to_string(end)})
         return out
 
     def _by_model(self, date_from, date_to):
@@ -158,20 +162,22 @@ class GhKpiServiceCollections(models.AbstractModel):
             g = by_product.get(line.contract_id.product_product_id.id)
             due[g.id if g else 0] += line.amount
         total = sum(collected.values())
-        rows = [{"label": g.name, "slot": g.color_slot, "collected": collected.get(g.id, 0.0),
+        rows = [{"group_id": g.id, "label": g.name, "slot": g.color_slot, "collected": collected.get(g.id, 0.0),
                  "share": self._pct(collected.get(g.id, 0.0), total), "due": due.get(g.id, 0.0),
                  "performance": self._pct(collected.get(g.id, 0.0), due.get(g.id, 0.0))} for g in groups]
         if collected.get(0) or due.get(0):
-            rows.append({"label": _("Not mapped"), "slot": False, "collected": collected.get(0, 0.0),
+            rows.append({"group_id": 0, "label": _("Not mapped"), "slot": False, "collected": collected.get(0, 0.0),
                          "share": self._pct(collected.get(0, 0.0), total), "due": due.get(0, 0.0),
                          "performance": self._pct(collected.get(0, 0.0), due.get(0, 0.0)), "warn": True})
         return {"rows": rows, "total": total, "total_due": sum(due.values()),
-                "month": date_from.strftime("%B %Y")}
+                "month": date_from.strftime("%B %Y"), "from": fields.Date.to_string(date_from),
+                "to": fields.Date.to_string(date_to)}
 
     def _financing(self, date_from, date_to, instalment_cash):
         lines = self.env["gh.financing.schedule"].sudo().search([("due_date", ">=", date_from), ("due_date", "<=", date_to)])
         if not lines:
-            return {"has_data": False, "instalment_cash": instalment_cash}
+            return {"has_data": False, "instalment_cash": instalment_cash, "from": fields.Date.to_string(date_from),
+                    "to": fields.Date.to_string(date_to)}
         company = self.env.company
         to_company = lambda l: l.currency_id._convert(l.principal + l.interest + l.fees, company.currency_id,
                                                        company, l.due_date)
@@ -180,6 +186,7 @@ class GhKpiServiceCollections(models.AbstractModel):
         for l in lines:
             by_lender[l.facility_id.lender_id.display_name] += to_company(l)
         return {"has_data": True, "instalment_cash": instalment_cash, "debt_service_due": due,
+                "from": fields.Date.to_string(date_from), "to": fields.Date.to_string(date_to),
                 "coverage": round(instalment_cash / due, 2) if due else None,
                 "by_lender": [{"lender": k, "due": v} for k, v in by_lender.items()]}
 

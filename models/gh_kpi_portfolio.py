@@ -140,6 +140,7 @@ class GhKpiServicePortfolio(models.AbstractModel):
             loss = self._account_amount("default_loss", start, min(end, through))
             revenue = self._revenue(start, min(end, through))
             monthly.append({"month": start.strftime("%b"), "loss": loss, "revenue": revenue,
+                            "from": fields.Date.to_string(start), "to": fields.Date.to_string(min(end, through)),
                             "loss_pct": self._pct(loss, revenue) if loss is not None and revenue else None})
         return {
             "year": year,
@@ -150,6 +151,7 @@ class GhKpiServicePortfolio(models.AbstractModel):
             "arrears_in_default": sum(r["arrears"] for r in defaults),
             "losses_ytd": losses_ytd,
             "avg_monthly_loss": losses_ytd / months_elapsed if losses_ytd is not None and months_elapsed else None,
+            "ytd_from": fields.Date.to_string(year_start), "ytd_to": fields.Date.to_string(through),
             "months_elapsed": round(months_elapsed, 1),
             "monthly": monthly,
             "loss_accounts_mapped": bool(self.env["gh.account.mapping"]._accounts("default_loss")),
@@ -160,7 +162,7 @@ class GhKpiServicePortfolio(models.AbstractModel):
         Contract = self.env["rider.contract"].sudo()
         ended = Contract.search([("state", "in", ("closed", "terminated")), ("bike_id", "!=", False)])
         by_product, _m, _g = self.env["gh.product.group"]._group_maps()
-        rows, waiting, days = [], [], []
+        rows, waiting, days, refinanced = [], [], [], []
         for c in ended:
             end_date = c.termination_date or c.contract_end_date
             if not end_date or end_date.year != year or Exit._exit_type(c) != "repossession_default":
@@ -172,6 +174,7 @@ class GhKpiServicePortfolio(models.AbstractModel):
                                    ("contract_start_date", ">=", end_date)], order="contract_start_date", limit=1)
             if nxt:
                 days.append((nxt.contract_start_date - end_date).days)
+                refinanced.append(nxt.id)
             else:
                 waiting.append(c.bike_id.id)
             rows.append(c.id)
@@ -179,6 +182,7 @@ class GhKpiServicePortfolio(models.AbstractModel):
                 "avg_days": round(sum(days) / len(days), 1) if days else None,
                 "median_days": median(days) if days else None,
                 "waiting_domain": [("id", "in", waiting)], "domain": [("id", "in", rows)],
+                "refinanced_ids": refinanced, "refinanced_domain": [("id", "in", refinanced)],
                 "exit_rules": bool(self.env["gh.exit.type.rule"].sudo().search_count([]))}
 
     def _default_trend(self, grain, date_from, on):
@@ -206,6 +210,7 @@ class GhKpiServicePortfolio(models.AbstractModel):
             collected = self.env["gh.history.service"]._collected_by_contract(prev + timedelta(days=1), end, list(with_arrears))
             recovered = sum(min(collected.get(cid, 0.0), amount) for cid, amount in with_arrears.items())
             out.append({"month": end.strftime("%b %Y"), "opening": opening, "closing": closing,
+                        "prev_end": fields.Date.to_string(prev), "end": fields.Date.to_string(end),
                         "recovered": recovered, "pct": self._pct(recovered, opening)})
         return out[-months:]
 

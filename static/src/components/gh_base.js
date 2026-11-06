@@ -92,6 +92,24 @@ export class GhDashboardBase extends Component {
         });
     }
 
+    /** Open the exact records behind a figure; see gh_drill.py for the kinds. */
+    async drill(kind, args = {}) {
+        const action = await this.orm.call("gh.kpi.service", "get_drill", [kind, args]);
+        return this.action.doAction(action);
+    }
+
+    /** Run a drill spec sent by the server: { kind, args }. */
+    go(spec) {
+        if (spec && spec.kind) {
+            return this.drill(spec.kind, spec.args || {});
+        }
+    }
+
+    /** Odoo accounting report (P&L, General Ledger, ...) for the same dates as the figure. */
+    report(key, dateFrom, dateTo, label) {
+        return this.drill("report", { report: key, date_from: dateFrom || false, date_to: dateTo || false, label });
+    }
+
     openAction(xmlid) {
         this.action.doAction(xmlid);
     }

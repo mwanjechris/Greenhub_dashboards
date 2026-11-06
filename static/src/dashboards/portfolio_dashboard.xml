@@ -22,7 +22,7 @@
       <div class="gh-hr" t-if="ok('core')">
         <div class="gh-logo">GREENHUB<small>DRIVING PROGRESS</small></div>
         <div class="gh-hero-l">Total arrears</div>
-        <div class="gh-hero-n"><t t-esc="d.currency"/> <t t-esc="heroParts.main"/><small t-esc="heroParts.suffix"/></div>
+        <div class="gh-hero-n lnk" title="Open the contracts in arrears" t-on-click="() => this.open('rider.contract', d.core.total_arrears.domain, 'Contracts in arrears')"><t t-esc="d.currency"/> <t t-esc="heroParts.main"/><small t-esc="heroParts.suffix"/></div>
         <div class="gh-hero-c">Overdue instalments plus unpaid late fees on <t t-esc="d.core.active_contracts.value"/> active contracts. Future instalments excluded.</div>
       </div>
     </div>
@@ -80,8 +80,8 @@
               <button class="gh-tile" t-on-click="() => this.open('rider.contract', d.core.total_arrears.domain, 'Contracts in arrears')"><span class="kc">P02</span>
                 <div class="gh-tile-l">Total arrears</div>
                 <div class="gh-tile-n"><t t-esc="moneyParts(d.core.total_arrears.value).main"/><small t-esc="moneyParts(d.core.total_arrears.value).suffix"/></div>
-                <div class="gh-tile-q">incl. late fees <b t-esc="fmtInt(d.core.total_arrears.late_fees)"/></div></button>
-              <button class="gh-tile" disabled="1"><span class="kc">P03</span>
+                <div class="gh-tile-q">incl. late fees <b class="lnk" t-on-click.stop="() => this.contracts(['is_active', 'penalties'], 'Contracts with late fees owed')" t-esc="fmtInt(d.core.total_arrears.late_fees)"/></div></button>
+              <button class="gh-tile" t-on-click="() => this.open('rider.contract', d.core.active_contracts.domain, 'Active contracts (average base)')"><span class="kc">P03</span>
                 <div class="gh-tile-l">Avg arrears / contract</div><div class="gh-tile-n" t-esc="fmtInt(d.core.avg_arrears.value)"/>
                 <div class="gh-tile-q">zero-arrears contracts included</div></button>
             </div></div>
@@ -122,7 +122,7 @@
                 <tr t-on-click="() => this.open('rider.contract', r.domain, r.label)"><td><i class="sw" t-att-style="'background:' + riskColor(r.key)"/><t t-esc="r.label"/></td>
                   <td><span class="muted" t-esc="r.rule"/></td><td class="r" t-esc="r.count"/><td class="r" t-esc="fmtPct(r.pct)"/></tr>
               </t>
-              <tr class="total"><td>Total</td><td/><td class="r" t-esc="d.core.active_contracts.value"/><td class="r">100%</td></tr>
+              <tr class="total" t-on-click="() => this.open('rider.contract', d.core.active_contracts.domain, 'Active contracts')"><td>Total</td><td/><td class="r" t-esc="d.core.active_contracts.value"/><td class="r">100%</td></tr>
             </tbody>
           </table>
         </div>
@@ -137,7 +137,8 @@
                 <tr t-on-click="() => this.open('rider.contract', r.domain, r.label)"><td><i class="sw" t-att-style="'background:' + parColor(r.key)"/><t t-esc="r.label"/></td>
                   <td><span class="muted" t-esc="r.rule"/></td><td class="r" t-esc="r.count"/><td class="r" t-esc="fmtPct(r.pct)"/><td class="r" t-esc="fmtInt(r.arrears)"/></tr>
               </t>
-              <tr class="total"><td>Total</td><td/><td class="r" t-esc="d.core.active_contracts.value"/><td class="r">100%</td><td class="r" t-esc="fmtInt(d.core.total_arrears.value)"/></tr>
+              <tr class="total" t-on-click="() => this.open('rider.contract', d.core.active_contracts.domain, 'Active contracts')"><td>Total</td><td/><td class="r" t-esc="d.core.active_contracts.value"/><td class="r">100%</td>
+                <td class="r lnk" t-on-click.stop="() => this.open('rider.contract', d.core.total_arrears.domain, 'Contracts in arrears')" t-esc="fmtInt(d.core.total_arrears.value)"/></tr>
             </tbody>
           </table>
         </div>
@@ -152,20 +153,23 @@
           <div class="gh-mcard"><span class="kc">P13–P15</span>
             <div class="gh-mhead out">Default position · <t t-esc="d.defaults.year"/></div>
             <div class="gh-mbody">
-              <div class="wf"><div class="wf-l"><span>Current default rate</span><span><t t-esc="fmtPct(d.defaults.rate.value)"/> <span style="font-size:12px;color:var(--gh-ink-soft)">(<t t-esc="d.defaults.rate.count"/> of <t t-esc="d.defaults.rate.of"/>)</span></span></div>
+              <div class="wf"><div class="wf-l"><span>Current default rate</span><span class="lnk" t-on-click="() => this.open('rider.contract', d.defaults.rate.domain, 'In default')"><t t-esc="fmtPct(d.defaults.rate.value)"/> <span style="font-size:12px;color:var(--gh-ink-soft)">(<t t-esc="d.defaults.rate.count"/> of <t t-esc="d.defaults.rate.of"/>)</span></span></div>
                 <div class="wf-b"><i t-att-style="'width:' + (d.defaults.rate.value || 0) + '%;background:var(--gh-red);min-width:4px'"/></div></div>
-              <div class="wf"><div class="wf-l"><span>Current arrears in default</span><span t-esc="fmtInt(d.defaults.arrears_in_default)"/></div>
+              <div class="wf"><div class="wf-l"><span>Current arrears in default</span><span class="lnk" t-on-click="() => this.open('rider.contract', d.defaults.rate.domain, 'In default')" t-esc="fmtInt(d.defaults.arrears_in_default)"/></div>
                 <div class="wf-b"><i t-att-style="'width:' + Math.min(100, d.core.total_arrears ? 100 * d.defaults.arrears_in_default / Math.max(d.core.total_arrears.value + d.defaults.arrears_in_default, 1) : 0) + '%;background:var(--gh-red)'"/></div></div>
-              <div class="wf"><div class="wf-l"><span>Avg monthly default loss</span><span t-esc="d.defaults.avg_monthly_loss !== null ? fmtInt(d.defaults.avg_monthly_loss) : '—'"/></div>
+              <div class="wf"><div class="wf-l"><span>Avg monthly default loss</span><span class="lnk" t-on-click="() => this.lossItems(d.defaults.ytd_from, d.defaults.ytd_to, 'Default losses YTD')" t-esc="d.defaults.avg_monthly_loss !== null ? fmtInt(d.defaults.avg_monthly_loss) : '—'"/></div>
                 <div class="wf-b"><i style="width:0"/></div></div>
               <div class="gh-assume">Definition: <t t-esc="d.defaults.scope_label"/>. Green Hub to confirm.</div>
               <div class="gh-fill"/>
-              <div class="tot"><div><div class="tot-l">Default losses YTD</div><div class="tot-c">Written off 1 Jan – <t t-esc="fmtDate(d.as_of)"/> · <t t-esc="d.defaults.months_elapsed"/> months</div></div>
-                <div class="tot-n out" t-esc="d.defaults.losses_ytd !== null ? fmtInt(d.defaults.losses_ytd) : '—'"/></div>
+              <div class="tot"><div><div class="tot-l">Default losses YTD</div><div class="tot-c">Written off 1 Jan – <t t-esc="fmtDate(d.as_of)"/> · <t t-esc="d.defaults.months_elapsed"/> months
+                  <span class="gh-rpt" style="padding:0 6px;margin-left:4px" t-on-click="() => this.report('gl', d.defaults.ytd_from, d.defaults.ytd_to)">General Ledger ↗</span></div></div>
+                <div class="tot-n out lnk" title="Journal items on the default-loss accounts" t-on-click="() => this.lossItems(d.defaults.ytd_from, d.defaults.ytd_to, 'Default losses YTD')" t-esc="d.defaults.losses_ytd !== null ? fmtInt(d.defaults.losses_ytd) : '—'"/></div>
             </div>
           </div>
           <div class="gh-panel"><span class="kc">P16 · P17</span>
-            <h3 class="gh-h3">Monthly default losses</h3>
+            <div class="gh-ptitle"><h3 class="gh-h3">Monthly default losses</h3>
+              <span class="gh-rpts"><span class="gh-rpt" t-on-click="() => this.report('pl', d.defaults.ytd_from, d.defaults.ytd_to)">P&amp;L ↗</span>
+                <span class="gh-rpt" t-on-click="() => this.report('gl', d.defaults.ytd_from, d.defaults.ytd_to)">GL ↗</span></span></div>
             <div class="gh-pcap">UGX written off · label = loss as % of recognised revenue</div>
             <t t-if="d.defaults.loss_accounts_mapped"><GhChart kind="'bar'" config="lossChart"/></t>
             <div class="empty" t-else=""><b>Awaiting account mapping</b>Map the write-off accounts under Configuration › Account mapping (role: Default losses).</div>
@@ -176,12 +180,12 @@
             <div class="empty" t-if="!d.repossessions.exit_rules"><b>Awaiting exit types</b>Map closure reasons under Configuration › Exit types.</div>
             <t t-else="">
               <div class="gh-tiles" style="grid-template-columns:1fr 1fr;gap:10px">
-                <div><div class="gh-tile-l">Average</div><div class="gh-tile-n"><t t-esc="d.repossessions.avg_days ?? '—'"/><small> d</small></div></div>
-                <div><div class="gh-tile-l">Median</div><div class="gh-tile-n"><t t-esc="d.repossessions.median_days ?? '—'"/><small> d</small></div></div>
+                <div class="lnk" t-on-click="() => this.open('rider.contract', d.repossessions.refinanced_domain, 'Refinancing contracts')"><div class="gh-tile-l">Average</div><div class="gh-tile-n"><t t-esc="d.repossessions.avg_days ?? '—'"/><small> d</small></div></div>
+                <div class="lnk" t-on-click="() => this.open('rider.contract', d.repossessions.refinanced_domain, 'Refinancing contracts')"><div class="gh-tile-l">Median</div><div class="gh-tile-n"><t t-esc="d.repossessions.median_days ?? '—'"/><small> d</small></div></div>
               </div>
               <table class="t" style="margin-top:14px"><tbody>
                 <tr t-on-click="() => this.open('rider.contract', d.repossessions.domain, 'Repossessions')"><td>Repossessed bikes (<t t-esc="d.year"/>)</td><td class="r"><b t-esc="d.repossessions.repossessed"/></td></tr>
-                <tr><td>Refinanced</td><td class="r" t-esc="d.repossessions.refinanced"/></tr>
+                <tr t-on-click="() => this.open('rider.contract', d.repossessions.refinanced_domain, 'Refinancing contracts')"><td>Refinanced</td><td class="r" t-esc="d.repossessions.refinanced"/></tr>
                 <tr t-on-click="() => this.open('fleet.vehicle', d.repossessions.waiting_domain, 'Waiting for refinancing')"><td>Still waiting</td><td class="r"><span class="st wrn">● <t t-esc="d.repossessions.waiting"/></span></td></tr>
               </tbody></table>
             </t>
@@ -206,7 +210,10 @@
             <thead><tr><th>Month</th><th class="r">Opening</th><th class="r">Closing</th><th class="r">Recovered from opening</th><th>Recovery %</th></tr></thead>
             <tbody>
               <t t-foreach="d.recovery.rows" t-as="r" t-key="r.month">
-                <tr><td t-esc="r.month"/><td class="r" t-esc="fmtMoney(r.opening)"/><td class="r" t-esc="fmtMoney(r.closing)"/><td class="r" t-esc="fmtMoney(r.recovered)"/>
+                <tr t-on-click="() => this.arrearsAt('month', r.prev_end, 'Opening arrears')"><td t-esc="r.month"/>
+                  <td class="r lnk" t-on-click.stop="() => this.arrearsAt('month', r.prev_end, 'Opening arrears')" t-esc="fmtMoney(r.opening)"/>
+                  <td class="r lnk" t-on-click.stop="() => this.arrearsAt('month', r.end, 'Closing arrears')" t-esc="fmtMoney(r.closing)"/>
+                  <td class="r lnk" title="The contracts in arrears at the opening, whose receipts during the month make up the recovery" t-on-click.stop="() => this.arrearsAt('month', r.prev_end, 'Recovery base: in arrears at opening')" t-esc="fmtMoney(r.recovered)"/>
                   <td><span style="display:flex;align-items:center;gap:8px"><span class="minibar" style="flex:1"><i t-att-style="'width:' + Math.max(2, r.pct || 0) + '%;background:var(--gh-green)'"/></span><span class="muted" t-esc="fmtPct(r.pct)"/></span></td></tr>
               </t>
             </tbody>

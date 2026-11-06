@@ -21,7 +21,7 @@
       <div class="gh-hr" t-if="ok('core')">
         <div class="gh-logo">GREENHUB<small>DRIVING PROGRESS</small></div>
         <div class="gh-hero-l">Cash collected · <t t-if="c.period.key === 'this_month'">MTD</t><t t-else="">period</t></div>
-        <div class="gh-hero-n"><t t-esc="d.currency"/> <t t-esc="heroParts.main"/><small t-esc="heroParts.suffix"/></div>
+        <div class="gh-hero-n lnk" title="Open the receipts" t-on-click="() => this.ok('core') and this.open('payment.log', d.core.domain, 'Receipts')"><t t-esc="d.currency"/> <t t-esc="heroParts.main"/><small t-esc="heroParts.suffix"/></div>
         <div class="gh-hero-c">All successful receipts across lease, rental, deposits, swaps, late fees and spare parts.</div>
       </div>
     </div>
@@ -69,37 +69,37 @@
               <button class="gh-tile" t-on-click="() => this.open('payment.log', c.domain, 'Receipts')"><span class="kc">C01</span>
                 <div class="gh-tile-l">Lease collections</div>
                 <div class="gh-tile-n"><t t-esc="moneyParts(c.lease).main"/><small t-esc="moneyParts(c.lease).suffix"/></div>
-                <div class="gh-tile-q">excl. late fees <t t-esc="fmtMoney(c.late_fees)"/> · deposits <t t-esc="fmtMoney(c.deposits)"/></div></button>
+                <div class="gh-tile-q">excl. late fees <span class="lnk" t-on-click.stop="() => this.receipts(['late_fee'], 'Late fees')" t-esc="fmtMoney(c.late_fees)"/> · deposits <span class="lnk" t-on-click.stop="() => this.receipts(['deposit'], 'Deposits')" t-esc="fmtMoney(c.deposits)"/></div></button>
               <button class="gh-tile" t-on-click="() => this.open('payment.schedule', c.due_domain, 'Lease instalments due')"><span class="kc">C02</span>
                 <div class="gh-tile-l">Lease instalments due</div>
                 <div class="gh-tile-n"><t t-esc="moneyParts(c.lease_due).main"/><small t-esc="moneyParts(c.lease_due).suffix"/></div>
                 <div class="gh-tile-q">scheduled in the period</div></button>
-              <button class="gh-tile" disabled="1"><span class="kc">C03</span>
+              <button class="gh-tile" t-on-click="() => this.receipts(['lease'], 'Lease receipts')" title="Lease receipts (numerator); the due figure is on C02"><span class="kc">C03</span>
                 <div class="gh-tile-l">Collection progress</div>
                 <div class="gh-tile-n"><t t-esc="c.progress ?? '—'"/><small>%</small></div>
-                <div class="gh-tile-q">cash ÷ due<t t-if="c.period.days"> · <t t-esc="proRataPct"/>% of month elapsed</t> · <t t-esc="fmtPct(c.compliance)"/> of instalments paid</div></button>
+                <div class="gh-tile-q">cash ÷ due<t t-if="c.period.days"> · <t t-esc="proRataPct"/>% of month elapsed</t> · <span class="lnk" t-on-click.stop="() => this.drill('dues', {date_from: c.period.from, date_to: c.period.to, product_group_id: state.productGroupId || false, lease_only: true, state: 'paid', label: 'Instalments paid'})"><t t-esc="fmtPct(c.compliance)"/> of instalments paid</span></div></button>
             </div></div>
           <div class="gh-cl" style="flex:2 1 0"><div class="gh-cl-l">Target</div>
             <div class="gh-tiles" style="grid-template-columns:repeat(2,minmax(0,1fr))">
-              <button class="gh-tile" disabled="1"><span class="kc">C06</span>
+              <button class="gh-tile" t-on-click="() => this.targets(false, 'Collections targets')" title="Open the target lines"><span class="kc">C06</span>
                 <div class="gh-tile-l">Collections vs target</div>
                 <div class="gh-tile-n"><t t-esc="c.vs_target ?? '—'"/><small t-if="c.vs_target !== null">%</small></div>
                 <div class="gh-tile-q"><t t-if="c.target_total !== null">of <t t-esc="d.currency"/> <t t-esc="fmtMoney(c.target_total)"/> target · <t t-esc="c.version"/></t><t t-else="">no approved target version</t></div></button>
-              <button class="gh-tile" disabled="1"><span class="kc">C07</span>
+              <button class="gh-tile" t-on-click="() => this.open('payment.log', c.domain, 'Receipts')" title="Open the receipts"><span class="kc">C07</span>
                 <div class="gh-tile-l">Variance to pro-rata target</div>
                 <div t-att-class="'gh-tile-n' + (c.variance !== null ? (c.variance >= 0 ? ' good' : ' crit') : '')"><t t-esc="c.variance !== null ? fmtMoney(c.variance) : '—'"/></div>
                 <div class="gh-tile-q" t-if="c.variance !== null"><span t-att-class="'st ' + (c.variance >= 0 ? 'fav' : 'unf')"><t t-if="c.variance >= 0">▲ Favourable</t><t t-else="">▼ Unfavourable</t></span> <t t-esc="fmtPct(c.variance_pct)"/></div></button>
             </div></div>
           <div class="gh-cl" style="flex:2 1 0" t-if="ok('rates')"><div class="gh-cl-l">Rates · <t t-esc="d.rates.month"/></div>
             <div class="gh-tiles" style="grid-template-columns:repeat(2,minmax(0,1fr))">
-              <button class="gh-tile" disabled="1"><span class="kc">C08</span>
+              <button class="gh-tile" t-on-click="() => this.drill('month_contracts', {month_end: d.rates.to, product_group_id: state.productGroupId || false, label: 'Contracts in the rate · ' + d.rates.month})"><span class="kc">C08</span>
                 <div class="gh-tile-l">Active-contract rate</div>
                 <div class="gh-tile-n good"><t t-esc="d.rates.active_rate ?? '—'"/><small>%</small></div>
-                <div class="gh-tile-q">collected ÷ due, Running + Paused</div></button>
-              <button class="gh-tile" disabled="1"><span class="kc">C09</span>
+                <div class="gh-tile-q"><span class="lnk" t-on-click.stop="() => this.drill('receipts', {date_from: d.rates.from, date_to: d.rates.to, product_group_id: state.productGroupId || false, instalment_only: true, label: 'Instalment receipts · ' + d.rates.month})">collected</span> ÷ <span class="lnk" t-on-click.stop="() => this.drill('dues', {date_from: d.rates.from, date_to: d.rates.to, product_group_id: state.productGroupId || false, active_only: true, label: 'Due · ' + d.rates.month})">due</span>, Running + Paused</div></button>
+              <button class="gh-tile" t-on-click="() => this.drill('month_contracts', {month_end: d.rates.to, product_group_id: state.productGroupId || false, label: 'Contracts in the rate · ' + d.rates.month})"><span class="kc">C09</span>
                 <div class="gh-tile-l">Entire-fleet rate</div>
                 <div class="gh-tile-n warn"><t t-esc="d.rates.fleet_rate ?? '—'"/><small>%</small></div>
-                <div class="gh-tile-q">incl. <t t-esc="d.rates.available"/> available bikes at the standard instalment</div></button>
+                <div class="gh-tile-q">incl. <span class="lnk" t-on-click.stop="() => this.drill('available_vehicles', {product_group_id: state.productGroupId || false, label: 'Available bikes'})"><t t-esc="d.rates.available"/> available bikes</span> at the standard instalment</div></button>
             </div></div>
         </div>
       </div>
@@ -114,12 +114,12 @@
               <t t-foreach="c.categories" t-as="cat" t-key="cat.key">
                 <tr t-on-click="() => this.open('payment.log', cat.domain, cat.label)">
                   <td><t t-esc="cat.label"/><t t-if="cat.key === 'other' and cat.actual"> ⚠</t></td><td class="r" t-esc="fmtInt(cat.actual)"/>
-                  <td class="r" t-esc="cat.target !== null ? fmtInt(cat.target) : '—'"/>
+                  <td t-att-class="'r' + (cat.target !== null ? ' lnk' : '')" t-on-click.stop="() => cat.target !== null and this.targets('category:' + cat.key, 'Target · ' + cat.label)" t-esc="cat.target !== null ? fmtInt(cat.target) : '—'"/>
                   <td class="r"><t t-if="cat.variance !== null"><span t-att-class="'st ' + (cat.variance >= 0 ? 'fav' : 'unf')"><t t-esc="cat.variance >= 0 ? '▲' : '▼'"/> <t t-esc="fmtInt(Math.abs(cat.variance))"/></span></t><t t-else="">—</t></td>
                   <td style="min-width:120px"><t t-if="cat.target"><span class="minibar" style="position:relative"><i t-att-style="'width:' + achievedWidth(cat) + '%'"/></span> <span class="muted" t-esc="fmtPct(cat.achieved)"/></t><span class="muted" t-else="">no target</span></td>
                 </tr>
               </t>
-              <tr class="total"><td>Total</td><td class="r" t-esc="fmtInt(c.total)"/><td class="r" t-esc="c.target_total !== null ? fmtInt(c.target_total) : '—'"/>
+              <tr class="total" t-on-click="() => this.open('payment.log', c.domain, 'Receipts')"><td>Total</td><td class="r lnk" t-on-click.stop="() => this.open('payment.log', c.domain, 'Receipts')" t-esc="fmtInt(c.total)"/><td t-att-class="'r' + (c.target_total !== null ? ' lnk' : '')" t-on-click.stop="() => c.target_total !== null and this.targets(false, 'Collections targets')" t-esc="c.target_total !== null ? fmtInt(c.target_total) : '—'"/>
                 <td class="r"><t t-if="c.variance !== null" t-esc="fmtInt(c.variance)"/></td><td><t t-if="c.vs_target !== null" t-esc="fmtPct(c.vs_target)"/></td></tr>
             </tbody>
           </table>
@@ -130,20 +130,20 @@
             <t t-if="!d.financing.has_data">
               <div class="empty"><b>Awaiting lender schedules</b>Load facilities and repayment schedules under Configuration › Lender facilities. Foreign-currency obligations convert at the Odoo rate for the period.</div>
               <div style="margin-top:16px;opacity:.55">
-                <div class="wf"><div class="wf-l"><span>Instalment cash collected (last month)</span><span t-esc="fmtMoney(d.financing.instalment_cash)"/></div><div class="wf-b"><i style="width:100%;background:var(--gh-green)"/></div></div>
-                <div class="wf"><div class="wf-l"><span>Debt service due</span><span>—</span></div><div class="wf-b"><i style="width:0"/></div></div>
+                <div class="wf"><div class="wf-l"><span>Instalment cash collected (last month)</span><span class="lnk" t-on-click="() => this.drill('receipts', {date_from: d.financing.from, date_to: d.financing.to, instalment_only: true, label: 'Instalment receipts, last month'})" t-esc="fmtMoney(d.financing.instalment_cash)"/></div><div class="wf-b"><i style="width:100%;background:var(--gh-green)"/></div></div>
+                <div class="wf"><div class="wf-l"><span>Debt service due</span><span class="lnk" t-on-click="() => this.drill('financing', {date_from: d.financing.from, date_to: d.financing.to})">— (load schedules)</span></div><div class="wf-b"><i style="width:0"/></div></div>
               </div>
             </t>
             <t t-else="">
-              <div class="wf"><div class="wf-l"><span>Instalment cash collected (last month)</span><span t-esc="fmtMoney(d.financing.instalment_cash)"/></div><div class="wf-b"><i style="width:100%;background:var(--gh-green)"/></div></div>
+              <div class="wf"><div class="wf-l"><span>Instalment cash collected (last month)</span><span class="lnk" t-on-click="() => this.drill('receipts', {date_from: d.financing.from, date_to: d.financing.to, instalment_only: true, label: 'Instalment receipts, last month'})" t-esc="fmtMoney(d.financing.instalment_cash)"/></div><div class="wf-b"><i style="width:100%;background:var(--gh-green)"/></div></div>
               <t t-foreach="d.financing.by_lender" t-as="l" t-key="l.lender">
-                <div class="wf"><div class="wf-l"><span>Debt service · <t t-esc="l.lender"/></span><span t-esc="fmtMoney(l.due)"/></div>
+                <div class="wf"><div class="wf-l"><span>Debt service · <t t-esc="l.lender"/></span><span class="lnk" t-on-click="() => this.drill('financing', {date_from: d.financing.from, date_to: d.financing.to, lender: l.lender, label: 'Debt service · ' + l.lender})" t-esc="fmtMoney(l.due)"/></div>
                   <div class="wf-b"><i t-att-style="'width:' + Math.min(100, 100 * l.due / Math.max(d.financing.instalment_cash, 1)) + '%;background:var(--gh-red)'"/></div></div>
               </t>
             </t>
             <div class="gh-fill"/>
             <div class="tot"><div><div class="tot-l">Debt-service collection coverage</div><div class="tot-c">Cash coverage ratio. This is not a formal DSCR</div></div>
-              <div class="tot-n" t-att-style="d.financing.coverage ? '' : 'color:var(--gh-ink-soft)'"><t t-esc="d.financing.coverage ?? '—'"/>×</div></div>
+              <div class="tot-n lnk" title="Open the lender repayment lines" t-on-click="() => this.drill('financing', {date_from: d.financing.from, date_to: d.financing.to})" t-att-style="d.financing.coverage ? '' : 'color:var(--gh-ink-soft)'"><t t-esc="d.financing.coverage ?? '—'"/>×</div></div>
           </div>
         </div>
       </div>
@@ -176,10 +176,11 @@
             <thead><tr><th>Product group</th><th class="r">Collected</th><th class="r">Share</th><th class="r">Due</th><th class="r">Performance</th></tr></thead>
             <tbody>
               <t t-foreach="d.by_model.rows" t-as="r" t-key="r_index">
-                <tr><td><i class="sw" t-att-style="'background:' + slotColor(r.slot)"/><t t-esc="r.label"/><t t-if="r.warn"> ⚠</t></td>
-                  <td class="r" t-esc="fmtMoney(r.collected)"/><td class="r" t-esc="fmtPct(r.share)"/><td class="r" t-esc="fmtMoney(r.due)"/><td class="r"><b t-esc="fmtPct(r.performance)"/></td></tr>
+                <tr t-on-click="() => this.modelReceipts(r.group_id, r.label)"><td><i class="sw" t-att-style="'background:' + slotColor(r.slot)"/><t t-esc="r.label"/><t t-if="r.warn"> ⚠</t></td>
+                  <td class="r lnk" t-on-click.stop="() => this.modelReceipts(r.group_id, r.label)" t-esc="fmtMoney(r.collected)"/><td class="r" t-esc="fmtPct(r.share)"/>
+                  <td class="r lnk" t-on-click.stop="() => this.modelDues(r.group_id, r.label)" t-esc="fmtMoney(r.due)"/><td class="r"><b t-esc="fmtPct(r.performance)"/></td></tr>
               </t>
-              <tr class="total"><td>Total</td><td class="r" t-esc="fmtMoney(d.by_model.total)"/><td class="r">100%</td><td class="r" t-esc="fmtMoney(d.by_model.total_due)"/>
+              <tr class="total"><td>Total</td><td class="r lnk" t-on-click="() => this.modelReceipts(null, 'All product groups')" t-esc="fmtMoney(d.by_model.total)"/><td class="r">100%</td><td class="r lnk" t-on-click="() => this.modelDues(null, 'All product groups')" t-esc="fmtMoney(d.by_model.total_due)"/>
                 <td class="r" t-esc="fmtPct(d.by_model.total_due ? 100 * d.by_model.total / d.by_model.total_due : null)"/></tr>
             </tbody>
           </table>
@@ -196,10 +197,10 @@
       <div class="gh-panel" t-if="ok('defaults')" style="display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap">
         <div><h3 class="gh-h3">Defaults &amp; losses</h3><div class="gh-pcap" style="margin:4px 0 0">Same component and numbers as on Portfolio &amp; Credit Risk</div></div>
         <div style="display:flex;gap:28px;flex-wrap:wrap">
-          <div><div class="gh-tile-l" style="min-height:0">Default rate</div><div class="gh-tile-n crit" style="font-size:24px" t-esc="fmtPct(d.defaults.rate.value)"/></div>
-          <div><div class="gh-tile-l" style="min-height:0">Arrears in default</div><div class="gh-tile-n" style="font-size:24px" t-esc="fmtInt(d.defaults.arrears_in_default)"/></div>
-          <div><div class="gh-tile-l" style="min-height:0">Losses YTD</div><div class="gh-tile-n" style="font-size:24px" t-esc="d.defaults.losses_ytd !== null ? fmtMoney(d.defaults.losses_ytd) : '—'"/></div>
-          <div><div class="gh-tile-l" style="min-height:0">Loss / revenue (last month)</div><div class="gh-tile-n" style="font-size:24px"
+          <div><div class="gh-tile-l" style="min-height:0">Default rate</div><div class="gh-tile-n crit lnk" style="font-size:24px" t-on-click="() => this.open('rider.contract', d.defaults.rate.domain, 'In default')" t-esc="fmtPct(d.defaults.rate.value)"/></div>
+          <div><div class="gh-tile-l" style="min-height:0">Arrears in default</div><div class="gh-tile-n lnk" style="font-size:24px" t-on-click="() => this.open('rider.contract', d.defaults.rate.domain, 'In default')" t-esc="fmtInt(d.defaults.arrears_in_default)"/></div>
+          <div><div class="gh-tile-l" style="min-height:0">Losses YTD <span class="gh-rpt" style="padding:0 6px" t-on-click="() => this.report('gl', d.defaults.year + '-01-01', d.as_of)">GL ↗</span></div><div class="gh-tile-n lnk" style="font-size:24px" t-on-click="() => this.lossItems(d.defaults.year + '-01-01', d.as_of, 'Default losses YTD')" t-esc="d.defaults.losses_ytd !== null ? fmtMoney(d.defaults.losses_ytd) : '—'"/></div>
+          <div><div class="gh-tile-l" style="min-height:0">Loss / revenue (last month)</div><div class="gh-tile-n lnk" style="font-size:24px" t-on-click="() => this.report('pl', d.financing.from, d.financing.to)" title="Odoo Profit and Loss, last month"
                t-esc="d.defaults.monthly.length &gt; 1 and d.defaults.monthly[d.defaults.monthly.length - 2].loss_pct !== null ? fmtPct(d.defaults.monthly[d.defaults.monthly.length - 2].loss_pct) : '—'"/></div>
         </div>
         <a href="#" style="font:500 12px var(--gh-sans);color:var(--gh-blue-step)" t-on-click.prevent="goPortfolio">Open in Portfolio →</a>

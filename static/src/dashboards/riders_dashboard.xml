@@ -28,7 +28,7 @@
       <div class="gh-hr" t-if="ok('core')">
         <div class="gh-logo">GREENHUB<small>DRIVING PROGRESS</small></div>
         <div class="gh-hero-l">Active riders</div>
-        <div class="gh-hero-n" t-esc="fmtInt(d.core.active_riders.value)"/>
+        <div class="gh-hero-n lnk" t-on-click="() => this.open('rider', d.core.active_riders.domain, 'Active riders')" t-esc="fmtInt(d.core.active_riders.value)"/>
         <div class="gh-hero-c">Distinct riders on a Running or Paused contract today.</div>
       </div>
     </div>
@@ -128,7 +128,7 @@
                 <span class="kc">R06</span>
                 <div class="gh-tile-l">Unassigned e-bodas</div>
                 <div class="gh-tile-n warn" t-esc="fmtInt(d.fleet.unassigned.value)"/>
-                <div class="gh-tile-q"><b t-esc="fmtPct(d.fleet.unassigned.pct)"/> of <t t-esc="d.fleet.fleet_total"/> fleet · <t t-esc="d.fleet.unassigned.new"/> new, <t t-esc="d.fleet.unassigned.refinancing"/> re-financing</div>
+                <div class="gh-tile-q"><b t-esc="fmtPct(d.fleet.unassigned.pct)"/> of <t t-esc="d.fleet.fleet_total"/> fleet · <span class="lnk" t-on-click.stop="() => this.open('fleet.vehicle', d.fleet.unassigned.new_domain, 'Unassigned, never contracted')"><t t-esc="d.fleet.unassigned.new"/> new</span>, <span class="lnk" t-on-click.stop="() => this.open('fleet.vehicle', d.fleet.unassigned.refi_domain, 'Unassigned, re-financing')"><t t-esc="d.fleet.unassigned.refinancing"/> re-financing</span></div>
               </button>
               <button class="gh-tile" t-on-click="() => this.open('fleet.vehicle', d.fleet.on_contract.domain, 'Vehicles on contract')">
                 <span class="kc">R07</span>
@@ -141,11 +141,11 @@
           <div class="gh-cl" style="flex:2 1 0" t-if="ok('safety')">
             <div class="gh-cl-l">Compliance &amp; safety</div>
             <div class="gh-tiles" style="grid-template-columns:repeat(2,minmax(0,1fr))">
-              <button class="gh-tile" t-on-click="() => this.open('rider', licenceCount('expiring').domain, 'Licences expiring soon')">
+              <button class="gh-tile" t-on-click="() => this.open('rider', this.licenceCount('expiring').domain, 'Licences expiring soon')">
                 <span class="kc">R18</span>
                 <div class="gh-tile-l">Licence expiring ≤ <t t-esc="d.safety.licences.notice_days"/> d</div>
                 <div class="gh-tile-n warn" t-esc="fmtInt(licenceCount('expiring').count)"/>
-                <div class="gh-tile-q"><t t-esc="licenceCount('expired').count"/> expired · <t t-esc="licenceCount('none').count + licenceCount('unknown').count"/> none or no end date</div>
+                <div class="gh-tile-q"><span class="lnk" t-on-click.stop="() => this.open('rider', this.licenceCount('expired').domain, 'Licences expired')"><t t-esc="licenceCount('expired').count"/> expired</span> · <span class="lnk" t-on-click.stop="() => this.open('rider', [['id', 'in', this.licenceCount('none').domain[0][2].concat(this.licenceCount('unknown').domain[0][2])]], 'No licence or no end date')"><t t-esc="licenceCount('none').count + licenceCount('unknown').count"/> none or no end date</span></div>
               </button>
               <button class="gh-tile" t-on-click="() => this.open('fleet.vehicle.accident', d.safety.accidents.domain, 'Accidents')">
                 <span class="kc">R17</span>
@@ -224,19 +224,19 @@
             <th class="r">Total</th></tr></thead>
           <tbody>
             <t t-foreach="d.fleet.matrix.rows" t-as="row" t-key="row_index">
-              <tr>
+              <tr t-on-click="() => this.drill('fleet_cell', {group_id: row.group_id, product_group_id: state.productGroupId || false, label: row.label})">
                 <td><i class="sw" t-att-style="'background:' + slotColor(row.slot)"/><t t-esc="row.label"/><t t-if="row.warn"> ⚠</t></td>
                 <t t-foreach="row.cells" t-as="cell" t-key="cell.category">
-                  <td class="r" t-on-click="() => this.open('fleet.vehicle', cell.domain, row.label)" t-esc="cell.count || '·'"/>
+                  <td class="r" t-on-click.stop="() => this.open('fleet.vehicle', cell.domain, row.label)" t-esc="cell.count || '·'"/>
                 </t>
-                <td class="r"><b t-esc="row.total"/></td>
+                <td class="r lnk" t-on-click.stop="() => this.drill('fleet_cell', {group_id: row.group_id, product_group_id: state.productGroupId || false, label: row.label})"><b t-esc="row.total"/></td>
               </tr>
             </t>
             <tr class="total"><td>Fleet</td>
               <t t-foreach="d.fleet.matrix.columns" t-as="col" t-key="col.category">
-                <td class="r"><t t-esc="col.count"/><div class="muted" t-esc="fmtPct(col.pct)"/></td>
+                <td class="r lnk" t-on-click="() => this.drill('fleet_cell', {category: col.category, product_group_id: state.productGroupId || false, label: col.label})"><t t-esc="col.count"/><div class="muted" t-esc="fmtPct(col.pct)"/></td>
               </t>
-              <td class="r" t-esc="d.fleet.fleet_total"/></tr>
+              <td class="r lnk" t-on-click="() => this.open('fleet.vehicle', d.fleet.fleet_domain, 'Fleet')" t-esc="d.fleet.fleet_total"/></tr>
           </tbody>
         </table>
         <t t-set="c07" t-value="d.checks.find((c) => c.code === 'R07')"/>
@@ -264,10 +264,10 @@
           <div class="gh-pcap">Opening-cohort method · new riders excluded from the cohort · upgrades count as retained</div>
           <t t-if="hasTrend">
             <div class="gh-tiles" style="grid-template-columns:1fr 1fr 1fr;gap:10px">
-              <div><div class="gh-tile-l">Lifetime</div>
+              <div class="lnk" t-on-click="() => t.lifetime and this.retention('week', t.lifetime.since, t.lifetime.until, 'Retained since ' + fmtDate(t.lifetime.since))"><div class="gh-tile-l">Lifetime</div>
                 <div class="gh-tile-n"><t t-if="t.lifetime and t.lifetime.pct !== null"><t t-esc="t.lifetime.pct"/><small>%</small></t><t t-else="">—</t></div>
                 <div class="gh-tile-q" t-if="t.lifetime">since <t t-esc="fmtDate(t.lifetime.since)"/> · cohort <t t-esc="t.lifetime.cohort"/></div></div>
-              <div><div class="gh-tile-l">Monthly<t t-if="t.monthly"> (<t t-esc="shortDate(t.monthly.month)"/>)</t></div>
+              <div class="lnk" t-on-click="() => t.monthly and this.retention('month', false, t.monthly.month, 'Retained this month')"><div class="gh-tile-l">Monthly<t t-if="t.monthly"> (<t t-esc="shortDate(t.monthly.month)"/>)</t></div>
                 <div class="gh-tile-n"><t t-if="t.monthly and t.monthly.pct !== null"><t t-esc="t.monthly.pct"/><small>%</small></t><t t-else="">—</t></div>
                 <div class="gh-tile-q" t-if="t.monthly"><t t-esc="t.monthly.retained"/> of <t t-esc="t.monthly.cohort"/></div></div>
               <div><div class="gh-tile-l"><t t-if="state.grain === 'week'">Weekly</t><t t-else="">Monthly</t> avg</div>
@@ -289,9 +289,12 @@
                 <th class="r">− Exits (planned · default · other)</th><th class="r">Closing</th><th class="r">Check</th></tr></thead>
               <tbody>
                 <t t-foreach="growthRows" t-as="g" t-key="g.end">
-                  <tr><td t-esc="fmtDate(g.end)"/><td class="r" t-esc="g.opening"/><td class="r" t-esc="g.first_time"/>
-                    <td class="r" t-esc="g.returning"/><td class="r"><t t-esc="g.exits"/> <span class="muted">(<t t-esc="g.exits_planned"/> · <t t-esc="g.exits_default"/> · <t t-esc="g.exits_other"/>)</span></td>
-                    <td class="r"><b t-esc="g.closing"/></td><td class="r"><t t-if="g.ok">✓</t><t t-else="">⚠</t></td></tr>
+                  <tr t-on-click="() => this.growth(g.end, 'closing', 'Active riders')"><td t-esc="fmtDate(g.end)"/>
+                    <td class="r lnk" t-on-click.stop="() => this.growth(g.end, 'opening', 'Opening riders')" t-esc="g.opening"/>
+                    <td class="r lnk" t-on-click.stop="() => this.growth(g.end, 'first_time', 'First-time riders')" t-esc="g.first_time"/>
+                    <td class="r lnk" t-on-click.stop="() => this.growth(g.end, 'returning', 'Returning riders')" t-esc="g.returning"/>
+                    <td class="r lnk" t-on-click.stop="() => this.growth(g.end, 'exits', 'Exits')"><t t-esc="g.exits"/> <span class="muted">(<t t-esc="g.exits_planned"/> · <t t-esc="g.exits_default"/> · <t t-esc="g.exits_other"/>)</span></td>
+                    <td class="r lnk" t-on-click.stop="() => this.growth(g.end, 'closing', 'Active riders')"><b t-esc="g.closing"/></td><td class="r"><t t-if="g.ok">✓</t><t t-else="">⚠</t></td></tr>
                 </t>
               </tbody>
             </table>
@@ -327,7 +330,7 @@
       <div class="gh-panel" t-if="ok('safety')"><span class="kc">R18</span>
         <div class="gh-ptitle"><h3 class="gh-h3">Licences expiring in the next <t t-esc="d.safety.licences.notice_days"/> days</h3>
           <a t-if="d.safety.licences.expiring.length" href="#" style="font:500 12px var(--gh-sans);color:var(--gh-blue-step)"
-             t-on-click.prevent="() => this.open('rider', licenceCount('expiring').domain, 'Licences expiring soon')">Open all <t t-esc="d.safety.licences.expiring.length"/> →</a></div>
+             t-on-click.prevent="() => this.open('rider', this.licenceCount('expiring').domain, 'Licences expiring soon')">Open all <t t-esc="d.safety.licences.expiring.length"/> →</a></div>
         <div class="gh-pcap">Learner's permits are not recorded in Odoo yet, so they are counted as valid or as no licence.</div>
         <div class="empty" t-if="!d.safety.licences.expiring.length"><b>No licences expire in this window</b></div>
         <table class="t" t-else="">

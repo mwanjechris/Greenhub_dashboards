@@ -424,7 +424,8 @@ class GhKpiService(models.AbstractModel):
             sets, _c = self._active_sets("week", [all_ends[0], all_ends[-1]], product_group_id)
             base = sets.get(all_ends[0], set())
             lifetime = {"pct": self._pct(len(base & sets.get(all_ends[-1], set())), len(base)),
-                        "since": fields.Date.to_string(all_ends[0]), "cohort": len(base)}
+                        "since": fields.Date.to_string(all_ends[0]), "cohort": len(base),
+                        "until": fields.Date.to_string(all_ends[-1])}
         month_ends = self._period_ends("month", None, on)
         monthly = None
         if len(month_ends) >= 2:

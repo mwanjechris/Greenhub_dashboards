@@ -22,7 +22,7 @@
       <div class="gh-hr" t-if="ok('pl')">
         <div class="gh-logo">GREENHUB<small>DRIVING PROGRESS</small></div>
         <div class="gh-hero-l">EBITDA · <t t-esc="periodName"/></div>
-        <div class="gh-hero-n"><t t-if="d.pl.tiles.ebitda.actual !== null"><t t-esc="d.currency"/> </t><t t-esc="moneyParts(d.pl.tiles.ebitda.actual).main"/><small t-esc="moneyParts(d.pl.tiles.ebitda.actual).suffix"/></div>
+        <div class="gh-hero-n lnk" title="Odoo Profit and Loss for the same period" t-on-click="() => this.report('pl', d.period.from, d.period.to)"><t t-if="d.pl.tiles.ebitda.actual !== null"><t t-esc="d.currency"/> </t><t t-esc="moneyParts(d.pl.tiles.ebitda.actual).main"/><small t-esc="moneyParts(d.pl.tiles.ebitda.actual).suffix"/></div>
         <div class="gh-hero-c"><t t-if="d.pl.tiles.ebitda.budget !== null">vs budget <t t-esc="fmtMoney(d.pl.tiles.ebitda.budget)"/></t><t t-elif="!hasActuals">Map ledger accounts to switch this on.</t><t t-else="">No budget for this version.</t></div>
       </div>
     </div>
@@ -54,36 +54,43 @@
           <div class="gh-cl" style="flex:4 1 0" t-if="ok('pl')"><div class="gh-cl-l">Financial</div>
             <div class="gh-tiles" style="grid-template-columns:repeat(4,minmax(0,1fr))">
               <t t-foreach="finTiles" t-as="t" t-key="t.code">
-                <button class="gh-tile" disabled="1"><span class="kc" t-esc="t.code"/>
+                <button class="gh-tile" t-on-click="() => this.go(t.drill)" t-att-title="'Open the journal items behind ' + t.label"><span class="kc" t-esc="t.code"/>
                   <div class="gh-tile-l" t-esc="t.label"/>
                   <div class="gh-tile-n"><t t-esc="moneyParts(t.actual).main"/><small t-esc="moneyParts(t.actual).suffix"/></div>
-                  <div class="gh-tile-q"><t t-if="t.budget !== null">vs <t t-esc="fmtMoney(t.budget)"/> · </t><span t-att-class="'st ' + t.pill.cls" t-esc="t.pill.text"/></div></button>
+                  <div class="gh-tile-q"><t t-if="t.budget !== null">vs <span class="lnk" title="Open the budget lines" t-on-click.stop="() => this.go(t.plan_drill)" t-esc="fmtMoney(t.budget)"/> · </t><span t-att-class="'st ' + t.pill.cls" t-esc="t.pill.text"/></div>
+                  <span class="gh-rpt" title="Odoo Profit and Loss report for the same period" t-on-click.stop="() => this.report('pl', d.period.from, d.period.to)">P&amp;L ↗</span></button>
               </t>
             </div></div>
           <div class="gh-cl" style="flex:4 1 0" t-if="ok('operational')"><div class="gh-cl-l">Operational</div>
             <div class="gh-tiles" style="grid-template-columns:repeat(4,minmax(0,1fr))">
               <t t-foreach="opsTiles" t-as="t" t-key="t.code">
-                <button class="gh-tile" disabled="1"><span class="kc" t-esc="t.code"/>
+                <button class="gh-tile" t-on-click="() => this.go(t.drill)"><span class="kc" t-esc="t.code"/>
                   <div class="gh-tile-l" t-esc="t.label"/>
                   <div class="gh-tile-n" t-esc="fmtVal(t.actual, t.unit)"/>
-                  <div class="gh-tile-q"><t t-if="t.budget !== null">vs <t t-esc="fmtVal(t.budget, t.unit)"/> · </t><span t-att-class="'st ' + t.pill.cls" t-esc="t.pill.text"/><t t-if="t.note"><br/><t t-esc="t.note"/></t></div></button>
+                  <div class="gh-tile-q"><t t-if="t.budget !== null">vs <span class="lnk" title="Open the plan lines" t-on-click.stop="() => this.go(t.plan_drill)" t-esc="fmtVal(t.budget, t.unit)"/> · </t><span t-att-class="'st ' + t.pill.cls" t-esc="t.pill.text"/><t t-if="t.note"><br/><t t-esc="t.note"/></t></div></button>
               </t>
             </div></div>
         </div>
       </div>
 
       <div class="gh-panel scrollx" t-if="ok('pl')">
-        <div class="gh-ptitle"><h3 class="gh-h3">Profit &amp; loss: actual vs budget</h3><span style="font:400 12px var(--gh-sans);color:var(--gh-ink-soft)">Click a line to drill into journal items</span></div>
+        <div class="gh-ptitle"><h3 class="gh-h3">Profit &amp; loss: actual vs budget</h3>
+          <span class="gh-rpts"><span style="font:400 12px var(--gh-sans);color:var(--gh-ink-soft)">Actuals open journal items, budgets open plan lines</span>
+            <span class="gh-rpt" t-on-click="() => this.report('pl', d.period.from, d.period.to)">P&amp;L report ↗</span>
+            <span class="gh-rpt" t-on-click="() => this.report('gl', d.period.from, d.period.to)">General Ledger ↗</span>
+            <span class="gh-rpt" t-on-click="() => this.report('bs', d.period.from, d.period.to)">Balance Sheet ↗</span></span></div>
         <div class="gh-pcap"><t t-esc="d.currency"/> · principal repayments excluded from revenue · variance = (actual − budget) ÷ |budget|</div>
         <div class="empty" t-if="!hasActuals"><b>Awaiting account mapping</b>Map ledger accounts to P&amp;L lines under Configuration › Account mapping. Lines show "—" until then; nothing is shown as a real zero.</div>
         <table class="t">
           <thead><tr><th>Line</th><th class="r">Month actual</th><th class="r">Month budget</th><th class="r">Period actual</th><th class="r">Period budget</th><th class="r">Variance</th><th class="r">Var %</th><th>Status</th></tr></thead>
           <tbody>
             <t t-foreach="d.pl.lines" t-as="l" t-key="l.label">
-              <tr t-att-style="l.level === 2 ? 'font-weight:600;border-top:2px solid var(--gh-ink)' : l.level ? 'font-weight:600' : ''" t-on-click="() => this.openLine(l)">
+              <tr t-att-style="l.level === 2 ? 'font-weight:600;border-top:2px solid var(--gh-ink)' : l.level ? 'font-weight:600' : ''" t-on-click="() => this.go(l.drill)">
                 <td t-att-style="l.level ? '' : 'padding-left:14px'"><t t-esc="l.label"/><span class="muted" t-if="!l.mapped and l.level !== 2"> · not mapped</span></td>
-                <td class="r" t-esc="fmtMoney(l.month_actual)"/><td class="r" t-esc="fmtMoney(l.month_budget)"/>
-                <td class="r" t-esc="fmtMoney(l.actual)"/><td class="r" t-esc="fmtMoney(l.budget)"/>
+                <td class="r lnk" title="Journal items, this month" t-on-click.stop="() => this.go(l.month_drill)" t-esc="fmtMoney(l.month_actual)"/>
+                <td class="r lnk" title="Budget lines, this month" t-on-click.stop="() => this.go(l.month_plan_drill)" t-esc="fmtMoney(l.month_budget)"/>
+                <td class="r lnk" title="Journal items, whole period" t-on-click.stop="() => this.go(l.drill)" t-esc="fmtMoney(l.actual)"/>
+                <td class="r lnk" title="Budget lines, whole period" t-on-click.stop="() => this.go(l.plan_drill)" t-esc="fmtMoney(l.budget)"/>
                 <td class="r" t-esc="l.variance.abs !== null ? fmtMoney(l.variance.abs) : '—'"/>
                 <td class="r" t-esc="l.variance.pct !== null ? l.variance.pct + '%' : 'n/a'"/>
                 <td><span t-att-class="'st ' + variancePill(l.variance, l.budget, l.actual).cls" t-esc="variancePill(l.variance, l.budget, l.actual).text"/></td>
@@ -95,7 +102,8 @@
 
       <div class="gh-row" style="grid-template-columns:minmax(0,1.4fr) minmax(0,1fr)">
         <div class="gh-panel">
-          <h3 class="gh-h3">Revenue: actual vs budget by month</h3>
+          <div class="gh-ptitle"><h3 class="gh-h3">Revenue: actual vs budget by month</h3>
+            <span class="gh-rpt" t-if="ok('pl')" t-on-click="() => this.report('pl', d.period.from.slice(0, 4) + '-01-01', d.period.to)">P&amp;L report ↗</span></div>
           <div class="gh-pcap"><t t-esc="d.currency"/> · same unit, one axis</div>
           <t t-if="hasActuals and ok('revenue_by_month')">
             <div class="lg"><span><i class="sw" style="background:var(--gh-slate)"/>Actual</span><span><i class="ln dash" style="border-color:var(--gh-amber)"/>Budget</span></div>
@@ -106,14 +114,14 @@
         <div class="gh-mcard" t-if="ok('outlook')">
           <div class="gh-mhead plum">Year-end outlook · EBITDA</div>
           <div class="gh-mbody">
-            <div class="wf"><div class="wf-l"><span>Actual YTD</span><span t-esc="fmtMoney(d.outlook.actual_ytd)"/></div><div class="wf-b"><i t-att-style="'width:' + outlookWidth(d.outlook.actual_ytd) + '%;background:var(--gh-slate)'"/></div></div>
-            <div class="wf"><div class="wf-l"><span>Forecast rest of year <span class="st neu">forecast</span></span><span t-esc="fmtMoney(d.outlook.forecast_rest)"/></div>
+            <div class="wf"><div class="wf-l"><span>Actual YTD <span class="gh-rpt" style="padding:0 6px" t-on-click="() => this.report('pl', d.outlook.ytd_from, d.outlook.ytd_to)">P&amp;L ↗</span></span><span class="lnk" title="Journal items, EBITDA YTD" t-on-click="() => this.go(d.outlook.actual_ytd_drill)" t-esc="fmtMoney(d.outlook.actual_ytd)"/></div><div class="wf-b"><i t-att-style="'width:' + outlookWidth(d.outlook.actual_ytd) + '%;background:var(--gh-slate)'"/></div></div>
+            <div class="wf"><div class="wf-l"><span>Forecast rest of year <span class="st neu">forecast</span></span><span t-att-class="d.outlook.forecast_drill ? 'lnk' : ''" t-on-click="() => this.go(d.outlook.forecast_drill)" t-esc="fmtMoney(d.outlook.forecast_rest)"/></div>
               <div class="wf-b"><i t-att-style="'width:' + outlookWidth(d.outlook.forecast_rest) + '%;background:repeating-linear-gradient(45deg,var(--gh-blue-step) 0 4px,#cfe0e6 4px 8px)'"/></div></div>
-            <div class="wf"><div class="wf-l"><span>Approved budget (full year)</span><span t-esc="fmtMoney(d.outlook.approved_full_year)"/></div><div class="wf-b"><i t-att-style="'width:' + outlookWidth(d.outlook.approved_full_year) + '%;background:var(--gh-amber)'"/></div></div>
+            <div class="wf"><div class="wf-l"><span>Approved budget (full year)</span><span t-att-class="d.outlook.approved_drill ? 'lnk' : ''" t-on-click="() => this.go(d.outlook.approved_drill)" t-esc="fmtMoney(d.outlook.approved_full_year)"/></div><div class="wf-b"><i t-att-style="'width:' + outlookWidth(d.outlook.approved_full_year) + '%;background:var(--gh-amber)'"/></div></div>
             <div class="gh-assume" t-if="!d.outlook.forecast_version">No forecast version yet: create one with kind "Forecast".</div>
             <div class="gh-fill"/>
             <div class="tot"><div><div class="tot-l">Year-end outlook</div><div class="tot-c">Actual YTD + forecast version. Not the approved budget</div></div>
-              <div class="tot-n out" t-esc="fmtMoney(d.outlook.outlook)"/></div>
+              <div class="tot-n out lnk" title="Odoo Profit and Loss, year to date" t-on-click="() => this.report('pl', d.outlook.ytd_from, d.outlook.ytd_to)" t-esc="fmtMoney(d.outlook.outlook)"/></div>
           </div>
         </div>
       </div>
@@ -126,8 +134,9 @@
             <thead><tr><th>KPI</th><th>Basis</th><th class="r">Actual</th><th class="r">Plan</th><th>Status</th></tr></thead>
             <tbody>
               <t t-foreach="d.operational.rows" t-as="r" t-key="r_index">
-                <tr><td><span class="muted" t-esc="r.code"/> <t t-esc="r.label"/><t t-if="r.note"> <span class="muted" t-esc="r.note"/></t></td><td><span class="muted" t-esc="r.basis"/></td>
-                  <td class="r" t-esc="fmtVal(r.actual, r.unit)"/><td class="r" t-esc="fmtVal(r.plan, r.unit)"/>
+                <tr t-on-click="() => this.go(r.drill)"><td><span class="muted" t-esc="r.code"/> <t t-esc="r.label"/><t t-if="r.note"> <span class="muted" t-esc="r.note"/></t>
+                    <span t-if="r.report" class="gh-rpt" style="margin-left:6px;padding:0 6px" t-on-click.stop="() => this.report(r.report, d.period.from, d.period.to)">GL ↗</span></td><td><span class="muted" t-esc="r.basis"/></td>
+                  <td class="r lnk" t-on-click.stop="() => this.go(r.drill)" t-esc="fmtVal(r.actual, r.unit)"/><td class="r lnk" title="Open the plan lines" t-on-click.stop="() => this.go(r.plan_drill)" t-esc="fmtVal(r.plan, r.unit)"/>
                   <td><span t-att-class="'st ' + variancePill(r.variance, r.plan, r.actual).cls" t-esc="variancePill(r.variance, r.plan, r.actual).text"/></td></tr>
               </t>
             </tbody>

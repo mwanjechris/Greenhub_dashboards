@@ -154,3 +154,14 @@
 .gh .gh-tabs{display:flex;gap:6px;margin-left:auto}
 .gh .gh-input{background:#16242B;border:1px solid var(--gh-dark-rule);border-radius:7px;padding:3px 6px;font:500 12px var(--gh-sans);color:#fff;color-scheme:dark}
 .gh .gh-f{white-space:nowrap}
+
+/* drill-through: every figure opens its records; ledger figures also link the Odoo report */
+.gh .lnk{cursor:pointer;text-decoration:underline dotted;text-underline-offset:2px}
+.gh .lnk:hover{color:var(--gh-blue-step)}
+.gh td.lnk,.gh td .lnk{text-decoration:none}
+.gh td.lnk:hover{text-decoration:underline;color:var(--gh-blue-step)}
+.gh .gh-rpt{display:inline-flex;align-items:center;gap:4px;font:500 11.5px var(--gh-sans);color:var(--gh-blue-step);
+  border:1px solid var(--gh-border);border-radius:999px;padding:2px 9px;background:var(--gh-card);cursor:pointer;white-space:nowrap}
+.gh .gh-rpt:hover{background:#EEF4F6}
+.gh .gh-rpts{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+.gh .gh-tile .gh-rpt{position:absolute;right:10px;bottom:10px;padding:1px 7px;font-size:10.5px}

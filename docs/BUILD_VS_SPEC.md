@@ -31,7 +31,7 @@ Charts are the mockup's SVG helpers ported into an OWL component (allowed by bri
 | All KPI maths on the server | Done |
 | One definition per KPI | Done (`gh.history.service` holds contract-level rules used live and historically) |
 | No string matching for business logic | Done. Products, models, vehicle categories, payment categories, exit types and accounts come from configuration records. Two one-off *setup helpers* propose tag and exit-type rules from names; a Manager reviews them. The payment memo prefix is a configured rule (the brief prescribes it as fallback). |
-| Every number drills down | Done for counts and amounts backed by records; rate tiles (C03, C08, C09) and P03 are derived and not clickable |
+| Every number drills down | Done (7 Nov round): every tile, sub-figure, table cell, total, chart bar/point and hero figure opens the records it was computed from; ledger figures also link the Odoo P&L / General Ledger / Balance Sheet for the same dates. See DRILL_THROUGH.md |
 | Read-only on business data | Done. No greenhub records are written. |
 | Unit tests + reconciliation tests | Done: 20 server tests + 4 headless-browser tests, all passing |
 

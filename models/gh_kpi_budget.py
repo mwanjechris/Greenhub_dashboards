@@ -79,6 +79,17 @@ class GhKpiServiceBudget(models.AbstractModel):
         mapped = {m.role for m in self.env["gh.account.mapping"].sudo().search([("company_id", "=", self.env.company.id)])
                   if m.account_ids}
         month_start = end.replace(day=1)
+        ds = fields.Date.to_string
+        vid = version.id if version else False
+
+        def ledger(roles, date_from, date_to, label):
+            return {"kind": "journal_items", "args": {"roles": list(roles), "date_from": ds(date_from),
+                                                      "date_to": ds(date_to), "label": label}}
+
+        def plan(roles, date_from, date_to, label, version_id=None):
+            return {"kind": "targets", "args": {"version_id": version_id or vid, "metrics": ["PL"],
+                                                "dim_keys": [f"role:{r}" for r in roles], "date_from": ds(date_from),
+                                                "date_to": ds(date_to), "label": label}}
 
         def pl():
             lines = []
@@ -94,6 +105,10 @@ class GhKpiServiceBudget(models.AbstractModel):
                               "month_actual": m_actual, "month_budget": m_budget,
                               "variance": self._variance(actual, budget, direction),
                               "mapped": any(r in mapped for r in roles),
+                              "drill": ledger(roles, start, end, label),
+                              "month_drill": ledger(roles, month_start, end, label),
+                              "plan_drill": plan(roles, start, end, label),
+                              "month_plan_drill": plan(roles, month_start, end, label),
                               "domain": [("account_id", "in", accounts.ids), ("parent_state", "=", "posted"),
                                          ("date", ">=", fields.Date.to_string(start)),
                                          ("date", "<=", fields.Date.to_string(end))]})
@@ -106,18 +121,30 @@ class GhKpiServiceBudget(models.AbstractModel):
             m_ebitda = (rev["month_actual"] - sum(c for c in m_costs if c is not None)) if rev["month_actual"] is not None else None
             lines.append({"label": "EBITDA", "level": 2, "actual": ebitda, "budget": ebitda_b,
                           "month_actual": m_ebitda, "month_budget": None,
-                          "variance": self._variance(ebitda, ebitda_b, "up"), "mapped": bool(mapped), "domain": False})
+                          "variance": self._variance(ebitda, ebitda_b, "up"), "mapped": bool(mapped), "domain": False,
+                          "drill": ledger(REVENUE_ROLES + EBITDA_COST_ROLES, start, end, "EBITDA"),
+                          "month_drill": ledger(REVENUE_ROLES + EBITDA_COST_ROLES, month_start, end, "EBITDA"),
+                          "plan_drill": plan(REVENUE_ROLES + EBITDA_COST_ROLES, start, end, "EBITDA"),
+                          "month_plan_drill": None})
             expenses = self._roles_actual(EBITDA_COST_ROLES, start, end)
             expenses_b = self._roles_budget(version, EBITDA_COST_ROLES, start, end) if version else None
             financing = self._roles_actual(FINANCING_ROLES, start, end)
             financing_b = self._roles_budget(version, FINANCING_ROLES, start, end) if version else None
             return {"lines": lines, "mapped_roles": sorted(mapped),
                     "tiles": {
-                        "revenue": {"actual": rev["actual"], "budget": rev["budget"], "var": rev["variance"]},
-                        "expenses": {"actual": expenses, "budget": expenses_b, "var": self._variance(expenses, expenses_b, "down")},
-                        "ebitda": {"actual": ebitda, "budget": ebitda_b, "var": self._variance(ebitda, ebitda_b, "up")},
+                        "revenue": {"actual": rev["actual"], "budget": rev["budget"], "var": rev["variance"],
+                                    "drill": ledger(REVENUE_ROLES, start, end, "Revenue"),
+                                    "plan_drill": plan(REVENUE_ROLES, start, end, "Revenue"), "report": "pl"},
+                        "expenses": {"actual": expenses, "budget": expenses_b, "var": self._variance(expenses, expenses_b, "down"),
+                                     "drill": ledger(EBITDA_COST_ROLES, start, end, "Expenses"),
+                                     "plan_drill": plan(EBITDA_COST_ROLES, start, end, "Expenses"), "report": "pl"},
+                        "ebitda": {"actual": ebitda, "budget": ebitda_b, "var": self._variance(ebitda, ebitda_b, "up"),
+                                   "drill": ledger(REVENUE_ROLES + EBITDA_COST_ROLES, start, end, "EBITDA"),
+                                   "plan_drill": plan(REVENUE_ROLES + EBITDA_COST_ROLES, start, end, "EBITDA"), "report": "pl"},
                         "financing": {"actual": financing, "budget": financing_b,
-                                      "var": self._variance(financing, financing_b, "down")}}}
+                                      "var": self._variance(financing, financing_b, "down"),
+                                      "drill": ledger(FINANCING_ROLES, start, end, "Financing costs"),
+                                      "plan_drill": plan(FINANCING_ROLES, start, end, "Financing costs"), "report": "pl"}}}
 
         def revenue_by_month():
             out = []
@@ -125,7 +152,9 @@ class GhKpiServiceBudget(models.AbstractModel):
                 m_start = m_end.replace(day=1)
                 if m_start > end:
                     break
-                out.append({"month": m_start.strftime("%b"),
+                out.append({"month": m_start.strftime("%b"), "from": ds(m_start), "to": ds(min(m_end, end)),
+                            "drill": ledger(REVENUE_ROLES, m_start, min(m_end, end), f"Revenue {m_start:%b %Y}"),
+                            "plan_drill": plan(REVENUE_ROLES, m_start, m_end, f"Revenue budget {m_start:%b %Y}"),
                             "actual": self._roles_actual(REVENUE_ROLES, m_start, min(m_end, end)),
                             "budget": self._roles_budget(version, REVENUE_ROLES, m_start, m_end) if version else None})
             return {"rows": out}
@@ -136,13 +165,20 @@ class GhKpiServiceBudget(models.AbstractModel):
             portfolio = self._portfolio_core(self.env["gh.history.service"]._live_contract_rows(on))
             active = portfolio["active_contracts"]["value"]
             rows.append({"code": "B07", "label": _("Active rider portfolio"), "basis": "end-date", "actual": active,
-                         "plan": Target._point_value(version, "B07", on), "direction": "up", "unit": "count"})
+                         "plan": Target._point_value(version, "B07", on), "direction": "up", "unit": "count",
+                         "drill": {"kind": "contracts", "args": {"keys": ["is_active"], "label": _("Active contracts")}},
+                         "plan_drill": {"kind": "targets", "args": {"version_id": vid, "metrics": ["B07"], "point_on": ds(on),
+                                                                    "label": _("Active rider portfolio plan")}}})
             growth = [g for g in self._growth_rows("week", None, 400, start, end)]
             first = sum(g["first_time"] for g in growth)
             returning = sum(g["returning"] for g in growth)
             rows.append({"code": "B08", "label": _("New rider onboarding (first-time)"), "basis": "sum", "actual": first,
                          "plan": Target._value(version, "B08", start, end), "direction": "up", "unit": "count",
-                         "note": _("+ %s returning", returning), "history": bool(growth)})
+                         "note": _("+ %s returning", returning), "history": bool(growth),
+                         "drill": {"kind": "first_time_range", "args": {"date_from": ds(start), "date_to": ds(end),
+                                                                        "label": _("First-time riders")}},
+                         "plan_drill": {"kind": "targets", "args": {"version_id": vid, "metrics": ["B08"], "date_from": ds(start),
+                                                                    "date_to": ds(end), "label": _("Onboarding plan")}}})
             fleet = self._fleet(on, None)
             per_group = {r["group_id"]: r for r in fleet["matrix"]["rows"]}
             for group in self.env["gh.product.group"].sudo().search([]):
@@ -150,7 +186,12 @@ class GhKpiServiceBudget(models.AbstractModel):
                 rows.append({"code": "B09", "label": _("Fleet deployment: %s", group.name), "basis": "end-date",
                              "actual": cell["count"] if cell else 0,
                              "plan": Target._point_value(version, "B09", on, f"group:{group.id}"), "direction": "up",
-                             "unit": "count"})
+                             "unit": "count",
+                             "drill": {"kind": "fleet_cell", "args": {"group_id": group.id, "category": "on_contract",
+                                                                      "label": _("On contract: %s", group.name)}},
+                             "plan_drill": {"kind": "targets", "args": {"version_id": vid, "metrics": ["B09"], "point_on": ds(on),
+                                                                        "dim_keys": [f"group:{group.id}"],
+                                                                        "label": _("Fleet deployment plan: %s", group.name)}}})
             collected = sum(l.amount for l in self._logs(start, end))
             plan_c = None
             if version:
@@ -159,10 +200,18 @@ class GhKpiServiceBudget(models.AbstractModel):
                 parts = [p for p in parts if p is not None]
                 plan_c = sum(parts) if parts else None
             rows.append({"code": "B06", "label": _("Cash collections"), "basis": "sum", "actual": collected,
-                         "plan": plan_c, "direction": "up", "unit": "ugx"})
+                         "plan": plan_c, "direction": "up", "unit": "ugx",
+                         "drill": {"kind": "receipts", "args": {"date_from": ds(start), "date_to": ds(end),
+                                                                "label": _("Receipts")}},
+                         "plan_drill": {"kind": "targets", "args": {"version_id": vid, "metrics": ["C05"], "dim_prefix": "category:",
+                                                                    "date_from": ds(start), "date_to": ds(end),
+                                                                    "label": _("Collections targets")}}})
             loss = self._role_actual("default_loss", start, end)
             rows.append({"code": "B10", "label": _("Default loss (loss, not arrears)"), "basis": "sum", "actual": loss,
-                         "plan": Target._value(version, "B10", start, end), "direction": "down", "unit": "ugx"})
+                         "plan": Target._value(version, "B10", start, end), "direction": "down", "unit": "ugx",
+                         "drill": ledger(["default_loss"], start, end, _("Default losses")), "report": "gl",
+                         "plan_drill": {"kind": "targets", "args": {"version_id": vid, "metrics": ["B10"], "date_from": ds(start),
+                                                                    "date_to": ds(end), "label": _("Default loss plan")}}})
             for r in rows:
                 r["variance"] = self._variance(r["actual"], r["plan"], r["direction"])
             return {"rows": rows}
@@ -186,7 +235,14 @@ class GhKpiServiceBudget(models.AbstractModel):
                 rev = self._roles_budget(version, REVENUE_ROLES, date(end.year, 1, 1), year_end)
                 cost = self._roles_budget(version, EBITDA_COST_ROLES, date(end.year, 1, 1), year_end)
                 approved = (rev or 0.0) - (cost or 0.0) if rev is not None else None
-            return {"actual_ytd": actual, "forecast_rest": fc, "forecast_version": forecast.name if forecast else False,
+            year_start = date(end.year, 1, 1)
+            return {"actual_ytd_drill": ledger(REVENUE_ROLES + EBITDA_COST_ROLES, year_start, end, _("EBITDA YTD")),
+                    "ytd_from": ds(year_start), "ytd_to": ds(end),
+                    "forecast_drill": plan(REVENUE_ROLES + EBITDA_COST_ROLES, rest_from, year_end, _("Forecast rest of year"),
+                                           forecast.id) if forecast else None,
+                    "approved_drill": plan(REVENUE_ROLES + EBITDA_COST_ROLES, year_start, year_end, _("Approved budget"))
+                    if version else None,
+                    "actual_ytd": actual, "forecast_rest": fc, "forecast_version": forecast.name if forecast else False,
                     "approved_full_year": approved,
                     "outlook": (actual + fc) if actual is not None and fc is not None else None}
 

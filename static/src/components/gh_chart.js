@@ -8,7 +8,8 @@ import { Component, onMounted, onPatched, onWillUnmount, useRef } from "@odoo/ow
  * segments, recessive grid, one y-axis, a hover tooltip on every bar and point.
  *
  * props.kind: "bar" | "line" | "stack100" | "stackCols100"
- * props.config: the same option objects the mockup used (labels, series, ...).
+ * props.config: the same option objects the mockup used (labels, series, ...), plus an
+ *   optional onClick(index, seriesIndex) that opens the records behind a bar / point.
  */
 const NS = "http://www.w3.org/2000/svg";
 const fmt = (n) => Math.round(n).toLocaleString("en-US");
@@ -55,6 +56,23 @@ function bindTip(node, html) {
     node.addEventListener("mousemove", moveTip);
     node.addEventListener("mouseleave", hideTip);
 }
+function svgPoint(svg, ev) {
+    const pt = svg.createSVGPoint();
+    pt.x = ev.clientX;
+    pt.y = ev.clientY;
+    return pt.matrixTransform(svg.getScreenCTM().inverse());
+}
+const HINT = `<div class="row" style="opacity:.7"><span class="k">Click to open the records</span></div>`;
+function bindClick(node, onClick, fn) {
+    if (!onClick) {
+        return;
+    }
+    node.style.cursor = "pointer";
+    node.addEventListener("click", (ev) => {
+        hideTip();
+        fn(ev);
+    });
+}
 const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
 const row = (c, k, v) =>
     `<div class="row"><span class="k">${c ? `<i style="background:${c}"></i>` : ""}${esc(k)}</span><b>${esc(v)}</b></div>`;
@@ -100,7 +118,7 @@ function roundTopRect(svg, x, y, w, h, r, fill) {
     return el("path", { d, fill }, svg);
 }
 
-function barChart(host, css, { labels, series, h = 200, yFmt = fmt, tipFmt = fmt, targets, targetStyle, topLabels, stacked = false }) {
+function barChart(host, css, { labels, series, h = 200, yFmt = fmt, tipFmt = fmt, targets, targetStyle, topLabels, stacked = false, onClick }) {
     const totals = labels.map((_, i) =>
         stacked
             ? series.reduce((s, se) => s + Math.max(0, se.values[i] || 0), 0)
@@ -140,11 +158,30 @@ function barChart(host, css, { labels, series, h = 200, yFmt = fmt, tipFmt = fmt
         const hit = el("rect", { class: "hit", x: f.L + f.step * i, y: f.T, width: f.step, height: f.ph }, f.svg);
         bindTip(hit, () => `<b>${esc(lb)}</b>` + series.map((se) => row(se.color, se.name, tipFmt(se.values[i] || 0))).join("") +
             (targets && targets[i] !== null && targets[i] !== undefined ? row(null, targetStyle?.name || "Due / target", tipFmt(targets[i])) : "") +
-            (topLabels && topLabels[i] ? row(null, "", topLabels[i]) : ""));
+            (topLabels && topLabels[i] ? row(null, "", topLabels[i]) : "") + (onClick ? HINT : ""));
+        bindClick(hit, onClick, (ev) => {
+            // which series was hit: stacked = by height, grouped = by bar slot
+            const p = svgPoint(f.svg, ev);
+            let j = null;
+            if (stacked) {
+                let acc = 0;
+                series.forEach((se, k) => {
+                    const v = Math.max(0, se.values[i] || 0);
+                    if (v && j === null && p.y >= f.y(acc + v) && p.y <= f.y(acc)) {
+                        j = k;
+                    }
+                    acc += v;
+                });
+            } else {
+                const k = Math.floor((p.x - x0) / (bw + 2));
+                j = k >= 0 && k < series.length ? k : null;
+            }
+            onClick(i, j);
+        });
     });
 }
 
-function lineChart(host, css, { labels, series, h = 190, yFmt = fmt, tipFmt = fmt, yMax, yMin = 0, refLine }) {
+function lineChart(host, css, { labels, series, h = 190, yFmt = fmt, tipFmt = fmt, yMax, yMin = 0, refLine, onClick }) {
     const values = series.flatMap((s) => s.values.filter((v) => v !== null && v !== undefined));
     const max = yMax ?? niceMax(Math.max(...values, refLine || 0, 0) * 1.1);
     const f = frame(host, h, max, yFmt, labels, { yMin });
@@ -181,7 +218,7 @@ function lineChart(host, css, { labels, series, h = 190, yFmt = fmt, tipFmt = fm
                 d.setAttribute("cy", yy(v));
                 d.setAttribute("opacity", 1);
             });
-            showTip(`<b>${esc(lb)}</b>` + series.map((se) => row(se.color, se.name, se.values[i] === null || se.values[i] === undefined ? "—" : tipFmt(se.values[i]))).join(""), e);
+            showTip(`<b>${esc(lb)}</b>` + series.map((se) => row(se.color, se.name, se.values[i] === null || se.values[i] === undefined ? "—" : tipFmt(se.values[i]))).join("") + (onClick ? HINT : ""), e);
         });
         hit.addEventListener("mousemove", moveTip);
         hit.addEventListener("mouseleave", () => {
@@ -189,10 +226,11 @@ function lineChart(host, css, { labels, series, h = 190, yFmt = fmt, tipFmt = fm
             dots.forEach((d) => d.setAttribute("opacity", 0));
             hideTip();
         });
+        bindClick(hit, onClick, () => onClick(i, null));
     });
 }
 
-function stack100(host, css, { cats, h = 34 }) {
+function stack100(host, css, { cats, h = 34, onClick }) {
     const W = host.clientWidth || 600, total = cats.reduce((s, c) => s + c.value, 0);
     const svg = el("svg", { class: "ch", viewBox: `0 0 ${W} ${h + 18}`, height: h + 18 }, host);
     const live = cats.filter((c) => c.value > 0), gaps = Math.max(live.length - 1, 0) * 2, usable = W - gaps;
@@ -204,7 +242,8 @@ function stack100(host, css, { cats, h = 34 }) {
             const t = el("text", { x: x + w / 2, y: h / 2 + 4, "text-anchor": "middle", style: `fill:${c.ink || "#fff"};font-weight:600` }, svg);
             t.textContent = Math.round((100 * c.value) / total) + "%";
         }
-        bindTip(r, `<b>${esc(c.name)}</b>` + row(c.color, "Contracts", c.value) + row(null, "Share", pct(c.value, total)) + (c.def ? row(null, "Rule", c.def) : ""));
+        bindTip(r, `<b>${esc(c.name)}</b>` + row(c.color, "Contracts", c.value) + row(null, "Share", pct(c.value, total)) + (c.def ? row(null, "Rule", c.def) : "") + (onClick ? HINT : ""));
+        bindClick(r, onClick, () => onClick(cats.indexOf(c), null));
         x += w + 2;
     });
     [0, 25, 50, 75, 100].forEach((p) => {
@@ -213,7 +252,7 @@ function stack100(host, css, { cats, h = 34 }) {
     });
 }
 
-function stackCols100(host, css, { labels, cats, data, h = 200 }) {
+function stackCols100(host, css, { labels, cats, data, h = 200, onClick }) {
     const f = frame(host, h, 100, (v) => v + "%", labels);
     const gw = f.step * 0.7;
     labels.forEach((lb, i) => {
@@ -233,7 +272,19 @@ function stackCols100(host, css, { labels, cats, data, h = 200 }) {
             acc += v;
         });
         const hit = el("rect", { class: "hit", x: f.L + f.step * i, y: f.T, width: f.step, height: f.ph }, f.svg);
-        bindTip(hit, () => `<b>${esc(lb)}</b>` + cats.map((c, j) => row(c.color, c.name, `${data[i][j]} · ${pct(data[i][j], tot)}`)).join(""));
+        bindTip(hit, () => `<b>${esc(lb)}</b>` + cats.map((c, j) => row(c.color, c.name, `${data[i][j]} · ${pct(data[i][j], tot)}`)).join("") + (onClick ? HINT : ""));
+        bindClick(hit, onClick, (ev) => {
+            const p = svgPoint(f.svg, ev);
+            let acc = 0, hitJ = null;
+            cats.forEach((c, j) => {
+                const v = (100 * data[i][j]) / tot;
+                if (v && hitJ === null && p.y >= f.y(acc + v) && p.y <= f.y(acc)) {
+                    hitJ = j;
+                }
+                acc += v;
+            });
+            onClick(i, hitJ);
+        });
     });
 }
 

@@ -1,0 +1,86 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Lists the dashboards drill into: the records each figure was computed from. -->
+    <record id="view_gh_contract_snapshot_drill_list" model="ir.ui.view">
+        <field name="name">gh.contract.snapshot.drill.list</field>
+        <field name="model">gh.contract.snapshot</field>
+        <field name="arch" type="xml">
+            <list create="0" edit="0" delete="0">
+                <field name="period_end"/>
+                <field name="contract_id"/>
+                <field name="rider_id"/>
+                <field name="bike_id" optional="hide"/>
+                <field name="product_group_id"/>
+                <field name="state"/>
+                <field name="payment_state" optional="show"/>
+                <field name="risk_category"/>
+                <field name="par_bucket" optional="show"/>
+                <field name="dpd" optional="show"/>
+                <field name="arrears" sum="Total"/>
+                <field name="penalties" sum="Total" optional="hide"/>
+                <field name="credit" sum="Total" optional="hide"/>
+                <field name="due_in_period" sum="Total" optional="show"/>
+                <field name="collected_in_period" sum="Total" optional="show"/>
+                <field name="is_active" optional="hide"/>
+                <field name="in_default" optional="hide"/>
+                <field name="source" optional="hide"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="view_gh_contract_snapshot_drill_form" model="ir.ui.view">
+        <field name="name">gh.contract.snapshot.drill.form</field>
+        <field name="model">gh.contract.snapshot</field>
+        <field name="arch" type="xml">
+            <form create="0" edit="0">
+                <sheet>
+                    <group>
+                        <group>
+                            <field name="period_type"/><field name="period_end"/><field name="contract_id"/>
+                            <field name="rider_id"/><field name="bike_id"/><field name="product_group_id"/>
+                            <field name="state"/><field name="payment_state"/><field name="source"/>
+                        </group>
+                        <group>
+                            <field name="is_active"/><field name="in_default"/><field name="risk_category"/>
+                            <field name="par_bucket"/><field name="dpd"/><field name="arrears"/><field name="penalties"/>
+                            <field name="credit"/><field name="instalment"/><field name="due_in_period"/>
+                            <field name="collected_in_period"/>
+                        </group>
+                    </group>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <record id="view_gh_kpi_target_drill_list" model="ir.ui.view">
+        <field name="name">gh.kpi.target.drill.list</field>
+        <field name="model">gh.kpi.target</field>
+        <field name="arch" type="xml">
+            <list create="0" edit="0" delete="0">
+                <field name="version_id"/>
+                <field name="metric_code"/>
+                <field name="dim_key"/>
+                <field name="period_type"/>
+                <field name="period_start"/>
+                <field name="value" sum="Total"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="view_gh_financing_schedule_drill_list" model="ir.ui.view">
+        <field name="name">gh.financing.schedule.drill.list</field>
+        <field name="model">gh.financing.schedule</field>
+        <field name="arch" type="xml">
+            <list create="0" edit="0" delete="0">
+                <field name="facility_id"/>
+                <field name="due_date"/>
+                <field name="currency_id" column_invisible="1"/>
+                <field name="principal" sum="Total"/>
+                <field name="interest" sum="Total"/>
+                <field name="fees" sum="Total"/>
+                <field name="paid_date" optional="show"/>
+                <field name="paid_amount" sum="Total" optional="show"/>
+            </list>
+        </field>
+    </record>
+</odoo>
