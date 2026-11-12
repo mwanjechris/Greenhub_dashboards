@@ -1,7 +1,8 @@
 /** @odoo-module **/
 
 import { useService } from "@web/core/utils/hooks";
-import { Component, onWillStart, useState } from "@odoo/owl";
+import { Component, onWillStart, onWillUnmount, useExternalListener, useState } from "@odoo/owl";
+import { GhHelp, loadGuide } from "./gh_help";
 import { fmtDate, fmtInt, fmtMoney, fmtPct, moneyParts, shortDate, slotColor } from "./gh_common";
 import { GhChart } from "./gh_chart";
 
@@ -15,6 +16,9 @@ export class GhDashboardBase extends Component {
     static props = ["*"];
     static components = { GhChart };
     method = "";
+    /** Key of this dashboard in the guide, and the explainer for its hero figure. */
+    guideKey = "";
+    heroHelp = "";
 
     setup() {
         this.orm = useService("orm");
@@ -22,9 +26,50 @@ export class GhDashboardBase extends Component {
         Object.assign(this, { fmtDate, fmtInt, fmtMoney, fmtPct, moneyParts, shortDate, slotColor });
         this.state = useState(Object.assign({
             data: null, loading: true, loadError: null, productGroupId: false, grain: "week",
-            showCodes: false, showChecks: false,
+            showCodes: false, showChecks: false, hints: this.hintsPref(),
         }, this.initialState()));
         onWillStart(() => this.load());
+        this.setupHelp();
+    }
+
+    // ---- hover explainers (text from gh.kpi.service.get_guide, shared with the Guide page)
+    hintsPref() {
+        try {
+            return window.localStorage.getItem("gh_dashboards.hints") !== "off";
+        } catch {
+            return true;
+        }
+    }
+
+    setupHelp() {
+        this.help = new GhHelp({}, () => (this.heroHelp ? [this.heroHelp] : []));
+        this.help.enabled = this.state.hints;
+        // never block the dashboard on its documentation
+        loadGuide(this.orm).then((guide) => {
+            for (const entry of guide.entries) {
+                this.help.byKey[entry.key] = entry;
+            }
+        }).catch((err) => console.error("Green Hub guide failed to load", err));
+        useExternalListener(document, "mouseover", this.help.onOver);
+        useExternalListener(document, "mousedown", this.help.hide, { capture: true });
+        useExternalListener(document, "scroll", this.help.hide, { capture: true });
+        onWillUnmount(() => this.help.destroy());
+    }
+
+    toggleHints() {
+        this.state.hints = !this.state.hints;
+        this.help.enabled = this.state.hints;
+        this.help.hide();
+        try {
+            window.localStorage.setItem("gh_dashboards.hints", this.state.hints ? "on" : "off");
+        } catch {
+            // private browsing: the choice lasts for this page only
+        }
+    }
+
+    openGuide(key) {
+        this.action.doAction({ type: "ir.actions.client", tag: "gh_dashboards.guide", name: "Guide",
+                               params: { dashboard: this.guideKey, key: key || false } });
     }
 
     initialState() {

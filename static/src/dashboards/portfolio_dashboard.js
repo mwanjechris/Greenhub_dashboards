@@ -8,6 +8,8 @@ import { PAR_COLORS, RISK_COLORS, RISK_INK } from "../components/gh_common";
 export class PortfolioDashboard extends GhDashboardBase {
     static template = "greenhub_dashboards.PortfolioDashboard";
     method = "get_portfolio_dashboard";
+    guideKey = "portfolio";
+    heroHelp = "P02";
 
     initialState() {
         return { asOf: false, year: false, range: "26w" };

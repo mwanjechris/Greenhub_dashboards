@@ -21,7 +21,7 @@
       <div class="gh-hr" t-if="ok('core')">
         <div class="gh-logo">GREENHUB<small>DRIVING PROGRESS</small></div>
         <div class="gh-hero-l">Cash collected · <t t-if="c.period.key === 'this_month'">MTD</t><t t-else="">period</t></div>
-        <div class="gh-hero-n lnk" title="Open the receipts" t-on-click="() => this.ok('core') and this.open('payment.log', d.core.domain, 'Receipts')"><t t-esc="d.currency"/> <t t-esc="heroParts.main"/><small t-esc="heroParts.suffix"/></div>
+        <div class="gh-hero-n lnk" t-on-click="() => this.ok('core') and this.open('payment.log', d.core.domain, 'Receipts')"><t t-esc="d.currency"/> <t t-esc="heroParts.main"/><small t-esc="heroParts.suffix"/></div>
         <div class="gh-hero-c">All successful receipts across lease, rental, deposits, swaps, late fees and spare parts.</div>
       </div>
     </div>
@@ -51,7 +51,7 @@
           <t t-if="checksFailed.length"><span class="bad">⚠</span> <t t-esc="c and c.unmapped_count"/> receipts unmapped</t>
           <t t-else=""><span class="ok">✓</span> Categories = total receipts · 0 unmapped</t>
         </button>
-        <button class="gh-codes-toggle" t-on-click="() => { this.state.showCodes = !this.state.showCodes; }"><t t-if="state.showCodes">Hide</t><t t-else="">Show</t> KPI codes</button>
+        <button class="gh-codes-toggle" t-on-click="() => { this.state.showCodes = !this.state.showCodes; }"><t t-if="state.showCodes">Hide</t><t t-else="">Show</t> KPI codes</button><button class="gh-codes-toggle" t-on-click="() => this.toggleHints()"><t t-if="state.hints">Hide</t><t t-else="">Show</t> hints</button><button class="gh-codes-toggle gh-guide-btn" t-on-click="() => this.openGuide()">Guide</button>
       </div>
     </div>
     <div class="gh-check-list" t-if="state.showChecks">
@@ -74,18 +74,18 @@
                 <div class="gh-tile-l">Lease instalments due</div>
                 <div class="gh-tile-n"><t t-esc="moneyParts(c.lease_due).main"/><small t-esc="moneyParts(c.lease_due).suffix"/></div>
                 <div class="gh-tile-q">scheduled in the period</div></button>
-              <button class="gh-tile" t-on-click="() => this.receipts(['lease'], 'Lease receipts')" title="Lease receipts (numerator); the due figure is on C02"><span class="kc">C03</span>
+              <button class="gh-tile" t-on-click="() => this.receipts(['lease'], 'Lease receipts')"><span class="kc">C03</span>
                 <div class="gh-tile-l">Collection progress</div>
                 <div class="gh-tile-n"><t t-esc="c.progress ?? '—'"/><small>%</small></div>
                 <div class="gh-tile-q">cash ÷ due<t t-if="c.period.days"> · <t t-esc="proRataPct"/>% of month elapsed</t> · <span class="lnk" t-on-click.stop="() => this.drill('dues', {date_from: c.period.from, date_to: c.period.to, product_group_id: state.productGroupId || false, lease_only: true, state: 'paid', label: 'Instalments paid'})"><t t-esc="fmtPct(c.compliance)"/> of instalments paid</span></div></button>
             </div></div>
           <div class="gh-cl" style="flex:2 1 0"><div class="gh-cl-l">Target</div>
             <div class="gh-tiles" style="grid-template-columns:repeat(2,minmax(0,1fr))">
-              <button class="gh-tile" t-on-click="() => this.targets(false, 'Collections targets')" title="Open the target lines"><span class="kc">C06</span>
+              <button class="gh-tile" t-on-click="() => this.targets(false, 'Collections targets')"><span class="kc">C06</span>
                 <div class="gh-tile-l">Collections vs target</div>
                 <div class="gh-tile-n"><t t-esc="c.vs_target ?? '—'"/><small t-if="c.vs_target !== null">%</small></div>
                 <div class="gh-tile-q"><t t-if="c.target_total !== null">of <t t-esc="d.currency"/> <t t-esc="fmtMoney(c.target_total)"/> target · <t t-esc="c.version"/></t><t t-else="">no approved target version</t></div></button>
-              <button class="gh-tile" t-on-click="() => this.open('payment.log', c.domain, 'Receipts')" title="Open the receipts"><span class="kc">C07</span>
+              <button class="gh-tile" t-on-click="() => this.open('payment.log', c.domain, 'Receipts')"><span class="kc">C07</span>
                 <div class="gh-tile-l">Variance to pro-rata target</div>
                 <div t-att-class="'gh-tile-n' + (c.variance !== null ? (c.variance >= 0 ? ' good' : ' crit') : '')"><t t-esc="c.variance !== null ? fmtMoney(c.variance) : '—'"/></div>
                 <div class="gh-tile-q" t-if="c.variance !== null"><span t-att-class="'st ' + (c.variance >= 0 ? 'fav' : 'unf')"><t t-if="c.variance >= 0">▲ Favourable</t><t t-else="">▼ Unfavourable</t></span> <t t-esc="fmtPct(c.variance_pct)"/></div></button>
@@ -150,7 +150,7 @@
         </div>
       </div>
 
-      <div class="gh-panel" t-if="ok('logs_vs_payments')"><span class="kc">C01 · Odoo</span>
+      <div class="gh-panel" t-if="ok('logs_vs_payments')" data-gh-help="LOGS"><span class="kc">Odoo</span>
         <t t-set="lp" t-value="d.logs_vs_payments"/>
         <div class="gh-ptitle"><h3 class="gh-h3">GreenHub payment logs vs Odoo payments</h3>
           <span class="gh-rpts"><span style="font:400 12px var(--gh-sans);color:var(--gh-ink-soft)"><t t-esc="periodTitle"/> · same dates, company currency</span>
@@ -225,8 +225,8 @@
         </div>
       </div>
 
-      <div class="gh-panel" t-if="ok('defaults')" style="display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap">
-        <div><h3 class="gh-h3">Defaults &amp; losses</h3><div class="gh-pcap" style="margin:4px 0 0">Same component and numbers as on Portfolio &amp; Credit Risk</div></div>
+      <div class="gh-panel" t-if="ok('defaults')" data-gh-help="C14" style="display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap">
+        <div><span class="kc">C14</span><h3 class="gh-h3">Defaults &amp; losses</h3><div class="gh-pcap" style="margin:4px 0 0">Same component and numbers as on Portfolio &amp; Credit Risk</div></div>
         <div style="display:flex;gap:28px;flex-wrap:wrap">
           <div><div class="gh-tile-l" style="min-height:0">Default rate</div><div class="gh-tile-n crit lnk" style="font-size:24px" t-on-click="() => this.open('rider.contract', d.defaults.rate.domain, 'In default')" t-esc="fmtPct(d.defaults.rate.value)"/></div>
           <div><div class="gh-tile-l" style="min-height:0">Arrears in default</div><div class="gh-tile-n lnk" style="font-size:24px" t-on-click="() => this.open('rider.contract', d.defaults.rate.domain, 'In default')" t-esc="fmtInt(d.defaults.arrears_in_default)"/></div>

@@ -8,6 +8,8 @@ import { sparkPoints } from "../components/gh_common";
 export class RidersDashboard extends GhDashboardBase {
     static template = "greenhub_dashboards.RidersDashboard";
     method = "get_riders_dashboard";
+    guideKey = "riders";
+    heroHelp = "R01";
 
     initialState() {
         return { asOf: false, range: "26w" };

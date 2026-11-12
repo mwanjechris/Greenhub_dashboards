@@ -9,3 +9,4 @@ from . import gh_target
 from . import gh_kpi_budget
 from . import gh_drill
 from . import gh_accounting
+from . import gh_guide

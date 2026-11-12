@@ -7,6 +7,8 @@ import { GhDashboardBase } from "../components/gh_base";
 export class CollectionsDashboard extends GhDashboardBase {
     static template = "greenhub_dashboards.CollectionsDashboard";
     method = "get_collections_dashboard";
+    guideKey = "collections";
+    heroHelp = "C04";
 
     initialState() {
         return { period: "this_month", dateFrom: false, dateTo: false, currency: "company" };

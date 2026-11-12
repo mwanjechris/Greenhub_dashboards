@@ -7,6 +7,8 @@ import { GhDashboardBase } from "../components/gh_base";
 export class BudgetDashboard extends GhDashboardBase {
     static template = "greenhub_dashboards.BudgetDashboard";
     method = "get_budget_dashboard";
+    guideKey = "budget";
+    heroHelp = "B05";
 
     initialState() {
         return { versionId: false, budgetId: false, period: "ytd", through: false, revenueBasis: "odoo" };

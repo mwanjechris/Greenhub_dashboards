@@ -40,6 +40,7 @@ Charts are the mockup's SVG helpers ported into an OWL component (allowed by bri
 | Every number drills down | Done (7 Nov round): every tile, sub-figure, table cell, total, chart bar/point and hero figure opens the records it was computed from; ledger figures also link the Odoo P&L / General Ledger / Balance Sheet for the same dates. See DRILL_THROUGH.md |
 | Read-only on business data | Done. No greenhub records are written. The only accounting write is the P&L *report variant* (report configuration, created on install, see ACCOUNTING_ALIGNMENT.md). |
 | Financial figures never computed by the dashboard | Done (6 Nov): P&L from Odoo's report engine, budgets from Odoo report budgets and analytic budgets, losses / repayments from posted journal items; tests assert equality with Odoo line by line |
+| User documentation (brief 9, step 8) | Done (12 Nov, 19.0.1.2.0): every card, filter and hero figure shows an explainer on hover, and the Guide menu documents all of them plus how to read, where the money figures come from, history, setup and terms. One source (`models/gh_guide.py`), thresholds read from the live settings; a test fails when a card has no entry |
 | Unit tests + reconciliation tests | Done: 33 server tests + 4 headless-browser tests, all passing; fresh install on an empty database verified |
 
 ### 0A codebase and upgrade

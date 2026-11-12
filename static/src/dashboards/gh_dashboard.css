@@ -165,3 +165,60 @@
 .gh .gh-rpt:hover{background:#EEF4F6}
 .gh .gh-rpts{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
 .gh .gh-tile .gh-rpt{position:absolute;right:10px;bottom:10px;padding:1px 7px;font-size:10.5px}
+
+/* hover explainers: appended to <body>, so not under .gh (text from gh.kpi.service.get_guide) */
+.gh-help{position:fixed;z-index:1090;pointer-events:none;width:max-content;max-width:min(380px,calc(100vw - 16px));max-height:calc(100vh - 16px);overflow:hidden;
+  background:#16242B;color:#E6EEF0;border-radius:9px;padding:12px 14px 9px;font:400 12.5px/1.5 "IBM Plex Sans",-apple-system,"Segoe UI",sans-serif;
+  box-shadow:0 10px 30px rgba(0,0,0,.28);opacity:0;visibility:hidden;transition:opacity .1s}
+.gh-help.on{opacity:1;visibility:visible}
+.gh-help-e + .gh-help-e{margin-top:10px;padding-top:10px;border-top:1px solid #2E4A54}
+.gh-help-h{font:600 13.5px/1.3 "IBM Plex Sans",-apple-system,"Segoe UI",sans-serif;color:#fff;display:flex;align-items:center;gap:7px}
+.gh-help-c{flex:none;font:600 9.5px ui-monospace,monospace;color:#fff;background:#5B4A7D;border-radius:4px;padding:2px 5px}
+.gh-help p{margin:5px 0 0}
+.gh-help p b{font-weight:600;color:#8FA6AE}
+.gh-help p.gh-help-w{color:#fff}
+.gh-help-f{margin-top:9px;padding-top:7px;border-top:1px solid #2E4A54;font-size:11px;color:#8FA6AE}
+/* cue that a panel title carries an explainer */
+.gh .gh-panel .gh-h3::after{content:"i";display:inline-block;width:14px;height:14px;margin-left:7px;border:1px solid var(--gh-border);border-radius:50%;
+  font:italic 600 9.5px/12px Georgia,serif;text-align:center;color:var(--gh-ink-soft);vertical-align:2px}
+.gh .gh-panel .gh-ptitle,.gh .gh-panel > .gh-h3,.gh .gh-panel .gh-pcap,.gh .gh-mhead{cursor:help}
+.gh .gh-guide-btn{text-decoration:none;border:1px solid var(--gh-dark-rule);border-radius:999px;padding:3px 11px;color:#fff}
+.gh .gh-guide-btn:hover{background:var(--gh-pill)}
+
+/* Guide page */
+.gh .gg{display:grid;grid-template-columns:230px minmax(0,1fr);gap:34px;max-width:1240px;margin:0 auto;padding:26px 44px 60px;align-items:start}
+.gh .gg-toc{position:sticky;top:18px;display:flex;flex-direction:column;gap:2px;max-height:calc(100vh - 140px);overflow-y:auto}
+.gh .gg-toc-l{font:600 10px var(--gh-sans);letter-spacing:.09em;text-transform:uppercase;color:var(--gh-slate);margin:12px 0 5px}
+.gh .gg-toc-l:first-child{margin-top:0}
+.gh .gg-toc button{display:block;width:100%;padding:5px 10px;border-radius:6px;font:400 13px var(--gh-sans);color:var(--gh-ink)}
+.gh .gg-toc button:hover{background:var(--gh-track)}
+.gh .gg-search{width:100%;background:#16242B;border:1px solid var(--gh-dark-rule);border-radius:7px;padding:7px 11px;font:400 13px var(--gh-sans);color:#fff;min-width:260px}
+.gh .gg-search::placeholder{color:var(--gh-on-dark)}
+.gh .gg-main{display:flex;flex-direction:column;gap:34px;min-width:0}
+.gh .gg-sec > h2{margin:0 0 4px;font:600 22px var(--gh-serif)}
+.gh .gg-sec > .gg-intro{margin:0 0 14px;color:var(--gh-ink-soft);max-width:70ch;font-size:14px}
+.gh .gg-sechead{display:flex;align-items:baseline;justify-content:space-between;gap:16px;flex-wrap:wrap}
+.gh .gg-open{font:500 12.5px var(--gh-sans);color:var(--gh-blue-step);white-space:nowrap}
+.gh .gg-open:hover{text-decoration:underline}
+.gh .gg-notes{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:12px}
+.gh .gg-note{background:var(--gh-card);border:1px solid var(--gh-border);border-radius:10px;padding:14px 16px}
+.gh .gg-note h4{margin:0 0 5px;font:600 13.5px var(--gh-sans)}
+.gh .gg-note p{margin:0;color:var(--gh-ink-soft);font-size:13px;line-height:1.55}
+.gh .gg-list{display:flex;flex-direction:column;gap:10px}
+.gh .gg-k{background:var(--gh-card);border:1px solid var(--gh-border);border-radius:10px;padding:14px 18px;scroll-margin-top:16px}
+.gh .gg-k.hit{border-color:var(--gh-plum);box-shadow:0 0 0 3px rgba(91,74,125,.16)}
+.gh .gg-k-h{display:flex;align-items:center;gap:9px;flex-wrap:wrap}
+.gh .gg-k-h h3{margin:0;font:600 15.5px var(--gh-serif)}
+.gh .gg-code{font:600 10px ui-monospace,monospace;color:#fff;background:var(--gh-plum);border-radius:4px;padding:2px 6px}
+.gh .gg-k-w{margin:6px 0 10px;font-size:14px;max-width:80ch}
+.gh .gg-k dl{display:grid;grid-template-columns:150px minmax(0,1fr);gap:6px 14px;margin:0;font-size:13px;line-height:1.55}
+.gh .gg-k dt{font:600 10.5px var(--gh-sans);letter-spacing:.05em;text-transform:uppercase;color:var(--gh-ink-soft);padding-top:3px}
+.gh .gg-k dd{margin:0;max-width:80ch}
+.gh .gg-terms{background:var(--gh-card);border:1px solid var(--gh-border);border-radius:10px;padding:6px 18px}
+.gh .gg-terms div{display:grid;grid-template-columns:190px minmax(0,1fr);gap:14px;padding:9px 0;border-bottom:1px solid var(--gh-rule);font-size:13px}
+.gh .gg-terms div:last-child{border-bottom:0}
+.gh .gg-terms b{font-weight:600}
+.gh .gg-terms span{color:var(--gh-ink-soft)}
+.gh .gg-none{color:var(--gh-ink-soft);padding:30px 0;text-align:center}
+@media (max-width:900px){.gh .gg{grid-template-columns:1fr;padding-left:16px;padding-right:16px}.gh .gg-toc{position:static;flex-direction:row;flex-wrap:wrap;max-height:none}.gh .gg-toc-l{width:100%}.gh .gg-toc button{width:auto}
+  .gh .gg-k dl,.gh .gg-terms div{grid-template-columns:1fr;gap:2px}.gh .gg-search{min-width:0}}

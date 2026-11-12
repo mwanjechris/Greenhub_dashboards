@@ -22,7 +22,7 @@
       <div class="gh-hr" t-if="ok('core')">
         <div class="gh-logo">GREENHUB<small>DRIVING PROGRESS</small></div>
         <div class="gh-hero-l">Total arrears</div>
-        <div class="gh-hero-n lnk" title="Open the contracts in arrears" t-on-click="() => this.open('rider.contract', d.core.total_arrears.domain, 'Contracts in arrears')"><t t-esc="d.currency"/> <t t-esc="heroParts.main"/><small t-esc="heroParts.suffix"/></div>
+        <div class="gh-hero-n lnk" t-on-click="() => this.open('rider.contract', d.core.total_arrears.domain, 'Contracts in arrears')"><t t-esc="d.currency"/> <t t-esc="heroParts.main"/><small t-esc="heroParts.suffix"/></div>
         <div class="gh-hero-c">Overdue instalments plus unpaid late fees on <t t-esc="d.core.active_contracts.value"/> active contracts. Future instalments excluded.</div>
       </div>
     </div>
@@ -56,7 +56,7 @@
           <t t-if="checksFailed.length"><span class="bad">⚠</span> <t t-esc="checksFailed.length"/> of <t t-esc="d.checks.length"/> checks fail</t>
           <t t-else=""><span class="ok">✓</span> Risk &amp; PAR each sum to <t t-esc="d.core.active_contracts ? d.core.active_contracts.value : 0"/> · matches Riders</t>
         </button>
-        <button class="gh-codes-toggle" t-on-click="() => { this.state.showCodes = !this.state.showCodes; }"><t t-if="state.showCodes">Hide</t><t t-else="">Show</t> KPI codes</button>
+        <button class="gh-codes-toggle" t-on-click="() => { this.state.showCodes = !this.state.showCodes; }"><t t-if="state.showCodes">Hide</t><t t-else="">Show</t> KPI codes</button><button class="gh-codes-toggle" t-on-click="() => this.toggleHints()"><t t-if="state.hints">Hide</t><t t-else="">Show</t> hints</button><button class="gh-codes-toggle gh-guide-btn" t-on-click="() => this.openGuide()">Guide</button>
       </div>
     </div>
     <div class="gh-check-list" t-if="state.showChecks">
@@ -223,20 +223,20 @@
       </div>
 
       <div class="gh-row" style="grid-template-columns:minmax(0,1fr) minmax(0,1fr)">
-        <div class="gh-panel"><span class="kc">P22</span>
+        <div class="gh-panel" data-gh-help="P22A"><span class="kc">P22</span>
           <h3 class="gh-h3">Total arrears over time</h3>
           <div class="gh-pcap"><t t-esc="d.currency"/> at each period end</div>
           <t t-if="hasTrend"><GhChart kind="'line'" config="arrearsChart"/></t>
           <div class="empty" t-else=""><b>History builds weekly</b>Arrears are recorded at each week end<t t-if="d.arrears_history_from"> from <t t-esc="d.arrears_history_from"/></t>. Earlier weeks cannot be rebuilt exactly from Odoo, so they are not shown.</div>
         </div>
-        <div class="gh-panel"><span class="kc">P22</span>
+        <div class="gh-panel" data-gh-help="P22B"><span class="kc">P22</span>
           <h3 class="gh-h3">Average arrears per active contract</h3>
           <div class="gh-pcap"><t t-esc="d.currency"/> at each period end. Separate chart, not a second axis</div>
           <t t-if="hasTrend"><GhChart kind="'line'" config="avgArrearsChart"/></t>
           <div class="empty" t-else=""><b>History builds weekly</b>Arrears are recorded at each week end<t t-if="d.arrears_history_from"> from <t t-esc="d.arrears_history_from"/></t>. Earlier weeks cannot be rebuilt exactly from Odoo, so they are not shown.</div>
         </div>
       </div>
-      <div class="gh-panel" t-if="ok('core')"><span class="kc">P22</span>
+      <div class="gh-panel" t-if="ok('core')" data-gh-help="P22C"><span class="kc">P22</span>
         <h3 class="gh-h3">Risk distribution over time</h3>
         <div class="gh-pcap">Share of active contracts by risk category at each period end</div>
         <t t-if="hasTrend">

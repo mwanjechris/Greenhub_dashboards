@@ -1,0 +1,88 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<templates xml:space="preserve">
+<t t-name="greenhub_dashboards.GuideNotes">
+  <section class="gg-sec" t-att-id="'gg-s-' + sec.key">
+    <h2 t-esc="sec.title"/>
+    <div class="gg-notes" style="margin-top:12px">
+      <t t-foreach="sec.items" t-as="item" t-key="item_index">
+        <div class="gg-note"><h4 t-esc="item.h"/><p t-esc="item.p"/></div>
+      </t>
+    </div>
+  </section>
+</t>
+
+<t t-name="greenhub_dashboards.Guide">
+<div class="gh" t-ref="root">
+  <div class="gh-fatal" t-if="state.error"><h3>The guide failed to load</h3><p t-esc="state.error"/></div>
+  <t t-elif="g">
+    <div class="gh-header">
+      <div class="gh-hl">
+        <div class="gh-eyebrow"><t t-esc="g.company"/> · Green Hub</div>
+        <h1 class="gh-title">Guide to the dashboards</h1>
+        <div class="gh-meta">
+          <span class="gh-meta-t">What every card means, how it is worked out and where its data comes from. Thresholds shown are the ones in force in Dashboard settings.</span>
+        </div>
+      </div>
+      <div class="gh-hr">
+        <div class="gh-logo">GREENHUB<small>DRIVING PROGRESS</small></div>
+        <div class="gh-hero-l">Find a card or a term</div>
+        <div style="margin-top:8px"><input class="gg-search" type="search" placeholder="e.g. arrears, R13, retention" t-att-value="state.q" t-on-input="onSearch"/></div>
+      </div>
+    </div>
+    <div class="gg">
+      <nav class="gg-toc">
+        <div class="gg-toc-l">Basics</div>
+        <t t-foreach="sectionsIn(['start', 'reading'])" t-as="sec" t-key="sec.key">
+          <button t-on-click="() => this.jump('s-' + sec.key)" t-esc="sec.title"/>
+        </t>
+        <div class="gg-toc-l" t-if="dashboards.length">Every card explained</div>
+        <t t-foreach="dashboards" t-as="dash" t-key="dash.key">
+          <button t-on-click="() => this.jump('d-' + dash.key)"><t t-esc="dash.name"/> <span style="color:var(--gh-ink-soft)">(<t t-esc="dash.entries.length"/>)</span></button>
+        </t>
+        <div class="gg-toc-l">Behind the figures</div>
+        <t t-foreach="sectionsIn(['money', 'history', 'setup', 'limits'])" t-as="sec" t-key="sec.key">
+          <button t-on-click="() => this.jump('s-' + sec.key)" t-esc="sec.title"/>
+        </t>
+        <button t-if="terms.length" t-on-click="() => this.jump('terms')">Terms</button>
+      </nav>
+      <div class="gg-main">
+        <div class="gg-none" t-if="nothing">Nothing in the guide matches "<t t-esc="state.q"/>".</div>
+        <t t-foreach="sectionsIn(['start', 'reading'])" t-as="sec" t-key="sec.key">
+          <t t-call="greenhub_dashboards.GuideNotes"/>
+        </t>
+        <t t-foreach="dashboards" t-as="dash" t-key="dash.key">
+          <section class="gg-sec" t-att-id="'gg-d-' + dash.key">
+            <div class="gg-sechead"><h2 t-esc="dash.name"/>
+              <button class="gg-open" t-if="dash.action" t-on-click="() => this.openDashboard(dash.action)">Open this dashboard →</button></div>
+            <p class="gg-intro" t-esc="dash.intro"/>
+            <div class="gg-list">
+              <t t-foreach="dash.entries" t-as="e" t-key="e.key">
+                <article t-att-class="'gg-k' + (state.hit === e.key ? ' hit' : '')" t-att-id="'gg-k-' + e.key">
+                  <div class="gg-k-h"><span class="gg-code" t-if="e.code" t-esc="e.code"/><h3 t-esc="e.title"/></div>
+                  <p class="gg-k-w" t-esc="e.what"/>
+                  <dl>
+                    <dt>How it is worked out</dt><dd t-esc="e.how"/>
+                    <t t-if="e.source"><dt>Where it comes from</dt><dd t-esc="e.source"/></t>
+                    <t t-if="e.click"><dt>When you click</dt><dd t-esc="e.click"/></t>
+                    <t t-if="e.note"><dt>Good to know</dt><dd t-esc="e.note"/></t>
+                  </dl>
+                </article>
+              </t>
+            </div>
+          </section>
+        </t>
+        <t t-foreach="sectionsIn(['money', 'history', 'setup', 'limits'])" t-as="sec" t-key="sec.key">
+          <t t-call="greenhub_dashboards.GuideNotes"/>
+        </t>
+        <section class="gg-sec" id="gg-terms" t-if="terms.length">
+          <h2>Terms</h2>
+          <div class="gg-terms" style="margin-top:12px">
+            <t t-foreach="terms" t-as="t" t-key="t_index"><div><b t-esc="t.term"/><span t-esc="t.meaning"/></div></t>
+          </div>
+        </section>
+      </div>
+    </div>
+  </t>
+</div>
+</t>
+</templates>

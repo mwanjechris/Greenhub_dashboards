@@ -71,7 +71,7 @@
         </button>
         <button class="gh-codes-toggle" t-on-click="() => { this.state.showCodes = !this.state.showCodes; }">
           <t t-if="state.showCodes">Hide</t><t t-else="">Show</t> KPI codes
-        </button>
+        </button><button class="gh-codes-toggle" t-on-click="() => this.toggleHints()"><t t-if="state.hints">Hide</t><t t-else="">Show</t> hints</button><button class="gh-codes-toggle gh-guide-btn" t-on-click="() => this.openGuide()">Guide</button>
       </div>
     </div>
     <div class="gh-check-list" t-if="state.showChecks">

@@ -4,3 +4,4 @@ from . import test_portfolio_collections
 from . import test_dashboards_ui
 from . import test_drill
 from . import test_accounting
+from . import test_guide

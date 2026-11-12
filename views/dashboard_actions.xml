@@ -16,4 +16,8 @@
         <field name="name">Budget &amp; Performance</field>
         <field name="tag">gh_dashboards.budget</field>
     </record>
+    <record id="action_gh_guide" model="ir.actions.client">
+        <field name="name">Guide</field>
+        <field name="tag">gh_dashboards.guide</field>
+    </record>
 </odoo>
