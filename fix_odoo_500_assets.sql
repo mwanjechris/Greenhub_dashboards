@@ -1,17 +1,20 @@
--- Run on greenhub19test.techthings.dev to restore /odoo immediately:
---   psql -U odoo19b -d greenhub19test.techthings.dev -f fix_odoo_500_assets.sql
--- Or as odoo19 if that is the DB user.
+-- Restore /odoo when greenhub_dashboards assets 404 / crash the web client.
+-- Run on the DB that serves greenhub19test.techthings.dev, then restart Odoo.
 
 BEGIN;
 
--- 1) Disable broken dashboard asset paths that crash web.assets_backend
 UPDATE ir_asset
 SET active = false
 WHERE path ILIKE '%greenhub_dash%'
    OR path ILIKE '%Greenhub_dash%';
 
--- 2) Show what remains
-SELECT id, name, bundle, path, active
+DELETE FROM ir_attachment
+WHERE name ILIKE '%web.assets_web%'
+   OR name ILIKE '%web.assets_backend%'
+   OR url ILIKE '%web.assets_web%'
+   OR url ILIKE '%web.assets_backend%';
+
+SELECT id, bundle, path, active
 FROM ir_asset
 WHERE path ILIKE '%greenhub_dash%'
    OR path ILIKE '%Greenhub_dash%'
