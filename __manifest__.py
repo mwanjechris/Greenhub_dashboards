@@ -4,7 +4,7 @@
     "author": "Tech Things",
     "website": "https://www.techthings.it",
     "category": "Productivity",
-    "version": "19.0.1.1.1",
+    "version": "19.0.1.1.2",
     "license": "LGPL-3",
     "depends": ["greenhub", "fleet", "account", "account_reports", "account_budget", "mail"],
     # Explicit installs only: the Green Hub server is shared by several tenants.
@@ -23,9 +23,24 @@
         "views/dashboard_actions.xml",
         "views/menus.xml",
     ],
-    # Temporarily empty: live host cannot resolve greenhub_dashboards/static/* (404),
-    # which breaks web.assets_web and the whole backend. Re-enable after folder
-    # name + saas-addons sync are confirmed on the greenhub19test host.
-    "assets": {},
+    "assets": {
+        "web.assets_backend": [
+            # Explicit files (no globs) — registers gh_dashboards.* client actions.
+            "greenhub_dashboards/static/src/dashboards/gh_fonts.css",
+            "greenhub_dashboards/static/src/dashboards/gh_dashboard.css",
+            "greenhub_dashboards/static/src/components/gh_common.js",
+            "greenhub_dashboards/static/src/components/gh_base.js",
+            "greenhub_dashboards/static/src/components/gh_chart.js",
+            "greenhub_dashboards/static/src/components/gh_chart.xml",
+            "greenhub_dashboards/static/src/dashboards/riders_dashboard.js",
+            "greenhub_dashboards/static/src/dashboards/riders_dashboard.xml",
+            "greenhub_dashboards/static/src/dashboards/portfolio_dashboard.js",
+            "greenhub_dashboards/static/src/dashboards/portfolio_dashboard.xml",
+            "greenhub_dashboards/static/src/dashboards/collections_dashboard.js",
+            "greenhub_dashboards/static/src/dashboards/collections_dashboard.xml",
+            "greenhub_dashboards/static/src/dashboards/budget_dashboard.js",
+            "greenhub_dashboards/static/src/dashboards/budget_dashboard.xml",
+        ],
+    },
     "application": True,
 }
