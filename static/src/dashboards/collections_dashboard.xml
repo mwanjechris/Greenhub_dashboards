@@ -69,7 +69,7 @@
               <button class="gh-tile" t-on-click="() => this.receipts(['lease'], 'Lease receipts')"><span class="kc">C01</span>
                 <div class="gh-tile-l">Lease collections</div>
                 <div class="gh-tile-n"><t t-esc="moneyParts(c.lease).main"/><small t-esc="moneyParts(c.lease).suffix"/></div>
-                <div class="gh-tile-q">excl. late fees <span class="lnk" t-on-click.stop="() => this.receipts(['late_fee'], 'Late fees')" t-esc="fmtMoney(c.late_fees)"/> · deposits <span class="lnk" t-on-click.stop="() => this.receipts(['deposit'], 'Deposits')" t-esc="fmtMoney(c.deposits)"/></div></button>
+                <div class="gh-tile-q"><t t-if="c.late_fees_in_lease">incl. late fees <span class="lnk" t-on-click.stop="() => this.drill(c.late_drill.kind, c.late_drill.args)" t-esc="fmtMoney(c.late_fees)"/></t><t t-else="">excl. late fees <span class="lnk" t-on-click.stop="() => this.receipts(['late_fee'], 'Late fees')" t-esc="fmtMoney(c.late_fees)"/></t> · deposits <span class="lnk" t-on-click.stop="() => this.receipts(['deposit'], 'Deposits')" t-esc="fmtMoney(c.deposits)"/></div></button>
               <button class="gh-tile" t-on-click="() => this.open('payment.schedule', c.due_domain, 'Lease instalments due')"><span class="kc">C02</span>
                 <div class="gh-tile-l">Lease instalments due</div>
                 <div class="gh-tile-n"><t t-esc="moneyParts(c.lease_due).main"/><small t-esc="moneyParts(c.lease_due).suffix"/></div>
@@ -117,6 +117,9 @@
                   <td t-att-class="'r' + (cat.target !== null ? ' lnk' : '')" t-on-click.stop="() => cat.target !== null and this.targets('category:' + cat.key, 'Target · ' + cat.label)" t-esc="cat.target !== null ? fmtInt(cat.target) : '—'"/>
                   <td class="r"><t t-if="cat.variance !== null"><span t-att-class="'st ' + (cat.variance >= 0 ? 'fav' : 'unf')"><t t-esc="cat.variance >= 0 ? '▲' : '▼'"/> <t t-esc="fmtInt(Math.abs(cat.variance))"/></span></t><t t-else="">—</t></td>
                   <td style="min-width:120px"><t t-if="cat.target"><span class="minibar" style="position:relative"><i t-att-style="'width:' + achievedWidth(cat) + '%'"/></span> <span class="muted" t-esc="fmtPct(cat.achieved)"/></t><span class="muted" t-else="">no target</span></td>
+                </tr>
+                <tr t-if="cat.of_which" t-on-click="() => this.drill(cat.of_which.drill.kind, cat.of_which.drill.args)" title="Part of the row above (the app labels these receipts LEASE); from Odoo's reconciliations with penalty invoices">
+                  <td class="muted" style="padding-left:22px">↳ <t t-esc="cat.of_which.label"/></td><td class="r lnk muted" t-esc="fmtInt(cat.of_which.amount)"/><td/><td/><td/>
                 </tr>
               </t>
               <tr class="total" t-on-click="() => this.open('payment.log', c.domain, 'Receipts')"><td>Total</td><td class="r lnk" t-on-click.stop="() => this.open('payment.log', c.domain, 'Receipts')" t-esc="fmtInt(c.total)"/><td t-att-class="'r' + (c.target_total !== null ? ' lnk' : '')" t-on-click.stop="() => c.target_total !== null and this.targets(false, 'Collections targets')" t-esc="c.target_total !== null ? fmtInt(c.target_total) : '—'"/>

@@ -85,8 +85,9 @@ class GhKpiServiceDrill(models.AbstractModel):
         lines = self.env["account.move.line"].search(domain)
         return self._window_action("account.move.line", lines.ids, label or title)
 
-    def _drill_pl_cell(self, report_line_id=None, date_from=None, date_to=None, label=None):
-        """Exactly what clicking this cell in Odoo's P&L opens (Odoo's audit of the report line)."""
+    def _drill_pl_cell(self, report_line_id=None, date_from=None, date_to=None, label=None, exclude_account_ids=None):
+        """Exactly what clicking this cell in Odoo's P&L opens (Odoo's audit of the report line).
+        exclude_account_ids: the 'Excl. principal' view drops those accounts' items, so the list still sums to the figure."""
         line = self.env["account.report.line"].browse(int(report_line_id))
         report = line.report_id
         options = self._pl_options(report, self._d(date_from), self._d(date_to))
@@ -100,6 +101,8 @@ class GhKpiServiceDrill(models.AbstractModel):
             "expression_label": col.get("expression_label") or "balance", "column_group_key": col["column_group_key"]})
         if action.get("type") == "ir.actions.act_window":
             action["name"] = _("%(line)s · %(f)s – %(t)s", line=label or line.name, f=date_from, t=date_to)
+            if exclude_account_ids:
+                action["domain"] = list(action.get("domain") or []) + [("account_id", "not in", list(exclude_account_ids))]
             if not any(v[1] == "form" for v in action.get("views", [])):
                 action["views"] = list(action.get("views") or [[False, "list"]]) + [[False, "form"]]
         return action
@@ -251,6 +254,15 @@ class GhKpiServiceDrill(models.AbstractModel):
                 (by_product.get(l.contract_id.product_product_id.id).id
                  if by_product.get(l.contract_id.product_product_id.id) else 0) == group_id))
         return self._window_action("payment.log", logs.ids, label or _("Receipts"))
+
+    def _drill_late_fees(self, date_from=None, date_to=None, product_group_id=None, label=None):
+        """Odoo reconciliations of penalty invoices with the period's instalment receipts (sum = the late-fee figure)."""
+        logs = self._logs(self._d(date_from), self._d(date_to), product_group_id or None)
+        classify = self.env["gh.payment.category.rule"]._classifier()
+        logs = logs.filtered(lambda l: classify(l) in INSTALMENT_CATEGORIES)
+        settlements = self._late_fee_settlements(logs)
+        return self._window_action("account.partial.reconcile", settlements.ids, label or _("Late fees paid"),
+                                   views=[[self._drill_view("Greenhub_dashboards.view_gh_late_fee_settlement_list"), "list"]])
 
     def _drill_dues(self, date_from=None, date_to=None, product_group_id=None, lease_only=False, active_only=False,
                     open_only=False, group_id=None, state=None, label=None):

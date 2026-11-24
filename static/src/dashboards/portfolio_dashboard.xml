@@ -218,7 +218,7 @@
               </t>
             </tbody>
           </table>
-          <div class="empty" t-else=""><b>Awaiting month-end history</b>Needs two consecutive month-end snapshots.</div>
+          <div class="empty" t-else=""><b>Awaiting month-end history</b>Needs two recorded month-end snapshots; earlier months cannot be rebuilt exactly from Odoo.</div>
         </div>
       </div>
 
@@ -227,13 +227,13 @@
           <h3 class="gh-h3">Total arrears over time</h3>
           <div class="gh-pcap"><t t-esc="d.currency"/> at each period end</div>
           <t t-if="hasTrend"><GhChart kind="'line'" config="arrearsChart"/></t>
-          <div class="empty" t-else=""><b>Awaiting history</b>Run the history backfill.</div>
+          <div class="empty" t-else=""><b>History builds weekly</b>Arrears are recorded at each week end<t t-if="d.arrears_history_from"> from <t t-esc="d.arrears_history_from"/></t>. Earlier weeks cannot be rebuilt exactly from Odoo, so they are not shown.</div>
         </div>
         <div class="gh-panel"><span class="kc">P22</span>
           <h3 class="gh-h3">Average arrears per active contract</h3>
           <div class="gh-pcap"><t t-esc="d.currency"/> at each period end. Separate chart, not a second axis</div>
           <t t-if="hasTrend"><GhChart kind="'line'" config="avgArrearsChart"/></t>
-          <div class="empty" t-else=""><b>Awaiting history</b>Run the history backfill.</div>
+          <div class="empty" t-else=""><b>History builds weekly</b>Arrears are recorded at each week end<t t-if="d.arrears_history_from"> from <t t-esc="d.arrears_history_from"/></t>. Earlier weeks cannot be rebuilt exactly from Odoo, so they are not shown.</div>
         </div>
       </div>
       <div class="gh-panel" t-if="ok('core')"><span class="kc">P22</span>
@@ -243,8 +243,8 @@
           <div class="lg"><t t-foreach="d.core.risk" t-as="r" t-key="r.key"><span><i class="sw" t-att-style="'background:' + riskColor(r.key)"/><t t-esc="r.label"/></span></t></div>
           <GhChart kind="'stackCols100'" config="riskTrend"/>
         </t>
-        <div class="empty" t-else=""><b>Awaiting history</b>Run the history backfill.</div>
-        <div class="gh-assume">Past arrears are rebuilt from instalments still unpaid today; receipts aren't linked to instalments, so late payers' past arrears are understated.</div>
+        <div class="empty" t-else=""><b>History builds weekly</b>Arrears are recorded at each week end<t t-if="d.arrears_history_from"> from <t t-esc="d.arrears_history_from"/></t>. Earlier weeks cannot be rebuilt exactly from Odoo, so they are not shown.</div>
+        <div class="gh-assume">Arrears history uses only snapshots recorded at the time (weekly). It is not rebuilt for earlier weeks: Odoo keeps today's instalment states only, and some payments are entered in Odoo without an app receipt.</div>
       </div>
     </div>
   </div>

@@ -19,6 +19,20 @@ PAR_LABELS = {"par0": "PAR0", "par7": "PAR7", "par14": "PAR14", "par21": "PAR21"
 class GhKpiServicePortfolio(models.AbstractModel):
     _inherit = "gh.kpi.service"
 
+    # ------------------------------------------------------------ arrears history
+    # Past arrears cannot be rebuilt exactly from Odoo: schedule states are today's, and some payments are entered
+    # in Odoo without an app receipt (24 Nov 2026 check on live: receipts-based rebuild 3.74M vs 4.65M today).
+    # So arrears-based history (trends, recovery, past "as of" weeks, forecast rates) uses ONLY snapshots that
+    # were recorded at the time (weekly cron or manual), never the backfill.
+    ARREARS_RELIABLE = [("source", "!=", "backfill")]
+
+    def _arrears_ends(self, period_type, date_to=None):
+        domain = [("period_type", "=", period_type), ("company_id", "=", self.env.company.id)] + self.ARREARS_RELIABLE
+        if date_to:
+            domain.append(("period_end", "<=", date_to))
+        rows = self.env["gh.contract.snapshot"].sudo()._read_group(domain, ["period_end:day"], ["__count"])
+        return sorted(d for d, _n in rows)
+
     # ------------------------------------------------------------ rows
     def _portfolio_rows(self, on, historic, product_group_id):
         if historic:
@@ -26,7 +40,8 @@ class GhKpiServicePortfolio(models.AbstractModel):
                        "in_default", "arrears", "penalties", "credit", "instalment", "dpd", "risk_category",
                        "par_bucket", "due_in_period", "collected_in_period"]
             rows = self.env["gh.contract.snapshot"].sudo().search_read(
-                [("period_type", "=", "week"), ("period_end", "=", on), ("company_id", "=", self.env.company.id)], fields_)
+                [("period_type", "=", "week"), ("period_end", "=", on), ("company_id", "=", self.env.company.id)]
+                + self.ARREARS_RELIABLE, fields_)
             for r in rows:
                 for key in ("contract_id", "rider_id", "bike_id", "product_group_id"):
                     r[key] = r[key][0] if r[key] else False
@@ -190,12 +205,13 @@ class GhKpiServicePortfolio(models.AbstractModel):
 
     def _recovery(self, on, months=6):
         Snap = self.env["gh.contract.snapshot"].sudo()
-        ends = self._period_ends("month", None, on)
+        ends = self._arrears_ends("month", on)
         out = []
         for prev, end in zip(ends, ends[1:]):
-            opening_rows = Snap.search([("period_type", "=", "month"), ("period_end", "=", prev), ("is_active", "=", True)])
+            opening_rows = Snap.search([("period_type", "=", "month"), ("period_end", "=", prev), ("is_active", "=", True)]
+                                       + self.ARREARS_RELIABLE)
             closing = sum(Snap.search([("period_type", "=", "month"), ("period_end", "=", end),
-                                       ("is_active", "=", True)]).mapped("arrears"))
+                                       ("is_active", "=", True)] + self.ARREARS_RELIABLE).mapped("arrears"))
             opening = sum(opening_rows.mapped("arrears"))
             with_arrears = {s.contract_id.id: s.arrears for s in opening_rows if s.arrears > 0}
             collected = self.env["gh.history.service"]._collected_by_contract(prev + timedelta(days=1), end, list(with_arrears))
@@ -207,7 +223,7 @@ class GhKpiServicePortfolio(models.AbstractModel):
 
     def _portfolio_trends(self, grain, date_from, on, product_group_id):
         domain = [("period_type", "=", grain), ("period_end", ">=", date_from), ("period_end", "<=", on),
-                  ("company_id", "=", self.env.company.id)]
+                  ("company_id", "=", self.env.company.id)] + self.ARREARS_RELIABLE
         if product_group_id:
             # per-group trends straight from contract snapshots
             snaps = self.env["gh.contract.snapshot"].sudo().search(domain + [("is_active", "=", True),
@@ -249,6 +265,9 @@ class GhKpiServicePortfolio(models.AbstractModel):
     def get_portfolio_dashboard(self, product_group_id=None, grain="week", as_of=False, year=None, range_key="26w"):
         self._check_access()
         on, historic = self._as_of(as_of)
+        recorded = self._arrears_ends("week")
+        if historic and on not in recorded:
+            on, historic = self._today(), False
         product_group_id = product_group_id or None
         year = int(year or on.year)
         rows = self._portfolio_rows(on, historic, product_group_id)
@@ -258,7 +277,9 @@ class GhKpiServicePortfolio(models.AbstractModel):
         last_snapshot = self.env["gh.kpi.snapshot"].sudo().search(
             [("company_id", "=", self.env.company.id)], order="period_end desc", limit=1)
         return {
-            "as_of": fields.Date.to_string(on), "historic": historic, "as_of_options": self._as_of_options(),
+            "as_of": fields.Date.to_string(on), "historic": historic,
+            "as_of_options": [fields.Date.to_string(d) for d in reversed(recorded[-26:])],
+            "arrears_history_from": fields.Date.to_string(recorded[0]) if recorded else False,
             "computed_at": fields.Datetime.to_string(fields.Datetime.now()), "company": self.env.company.name,
             "currency": self.env.company.currency_id.name,
             "product_groups": self._group_payload(self.env["gh.product.group"].sudo().search([])),

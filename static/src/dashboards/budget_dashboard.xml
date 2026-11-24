@@ -15,6 +15,7 @@
         <h1 class="gh-title">Budget, Actuals &amp; Performance</h1>
         <div class="gh-meta">
           <span class="gh-pill"><span class="gh-dot"/>Read from Odoo accounting<t t-if="ok('pl') and d.pl.report"> · <t t-esc="d.pl.report"/></t></span>
+          <span class="gh-pill" t-if="d.revenue_basis === 'excl_principal'" style="background:var(--gh-amber,#B0751A);color:#fff">Excl. lease principal · differs from Odoo's P&amp;L by design</span>
           <span class="gh-meta-t">Budget: <t t-if="d.budget" t-esc="d.budget.name"/><t t-else="">none selected</t> (Odoo report budget) · operational targets: <t t-if="d.version" t-esc="d.version.name"/><t t-else="">none approved</t></span>
         </div>
       </div>
@@ -41,6 +42,9 @@
         <button t-att-class="state.period === 'month' ? 'on' : ''" t-on-click="() => this.set('period', 'month')">Month</button>
         <button t-att-class="state.period === 'quarter' ? 'on' : ''" t-on-click="() => this.set('period', 'quarter')">Quarter</button>
         <button t-att-class="state.period === 'ytd' ? 'on' : ''" t-on-click="() => this.set('period', 'ytd')">YTD</button></span></div>
+      <div class="gh-f" t-if="d.principal_accounts and d.principal_accounts.length" t-att-title="'Excl. principal removes ' + d.principal_accounts.join(', ') + ' from Revenue and every line built on it. As Odoo = exactly Odoo\'s Profit and Loss.'">Revenue <span class="gh-seg">
+        <button t-att-class="state.revenueBasis === 'odoo' ? 'on' : ''" t-on-click="() => this.set('revenueBasis', 'odoo')">As Odoo P&amp;L</button>
+        <button t-att-class="state.revenueBasis === 'excl_principal' ? 'on' : ''" t-on-click="() => this.set('revenueBasis', 'excl_principal')">Excl. principal</button></span></div>
       <div class="gh-f">Through
         <select class="gh-select" t-on-change="onThrough">
           <t t-foreach="d.through_options" t-as="m" t-key="m">

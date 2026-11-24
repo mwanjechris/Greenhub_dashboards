@@ -55,9 +55,10 @@
                     <group string="Ledgers">
                         <field name="default_loss_account_ids" widget="many2many_tags" options="{'no_create': True}"/>
                         <field name="loan_account_ids" widget="many2many_tags" options="{'no_create': True}"/>
+                        <field name="principal_account_ids" widget="many2many_tags" options="{'no_create': True}"/>
                         <field name="loan_interest_account_ids" widget="many2many_tags" options="{'no_create': True}"/>
                         <button name="action_suggest_ledgers" type="object" class="btn-link" colspan="2"
-                                string="Suggest: bad-debt write-off and loan accounts by name"
+                                string="Suggest: bad-debt write-off, loan and lease-principal accounts by name"
                                 groups="Greenhub_dashboards.group_gh_dashboard_manager"/>
                     </group>
                 </group>

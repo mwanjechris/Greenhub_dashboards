@@ -1,6 +1,21 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
     <!-- Lists the dashboards drill into: the records each figure was computed from. -->
+    <!-- Late fees paid: reconciliations of penalty invoices (debit) with receipt payments (credit) -->
+    <record id="view_gh_late_fee_settlement_list" model="ir.ui.view">
+        <field name="name">gh.late.fee.settlement.list</field>
+        <field name="model">account.partial.reconcile</field>
+        <field name="arch" type="xml">
+            <list create="0" edit="0" delete="0">
+                <field name="max_date" string="Settled on"/>
+                <field name="debit_move_id" string="Penalty invoice line"/>
+                <field name="credit_move_id" string="Paid by (receipt payment)"/>
+                <field name="company_currency_id" column_invisible="1"/>
+                <field name="amount" string="Late fee paid" sum="Total"/>
+            </list>
+        </field>
+    </record>
+
     <record id="view_gh_contract_snapshot_drill_list" model="ir.ui.view">
         <field name="name">gh.contract.snapshot.drill.list</field>
         <field name="model">gh.contract.snapshot</field>

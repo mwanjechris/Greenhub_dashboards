@@ -9,12 +9,12 @@ export class BudgetDashboard extends GhDashboardBase {
     method = "get_budget_dashboard";
 
     initialState() {
-        return { versionId: false, budgetId: false, period: "ytd", through: false };
+        return { versionId: false, budgetId: false, period: "ytd", through: false, revenueBasis: "odoo" };
     }
 
     params() {
         return { version_id: this.state.versionId || false, budget_id: this.state.budgetId || false,
-                 period: this.state.period, through: this.state.through || false };
+                 period: this.state.period, through: this.state.through || false, revenue_basis: this.state.revenueBasis };
     }
 
     onThrough(ev) {

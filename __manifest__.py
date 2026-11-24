@@ -4,7 +4,7 @@
     "author": "Tech Things",
     "website": "https://www.techthings.it",
     "category": "Productivity",
-    "version": "19.0.1.1.5",
+    "version": "19.0.1.2.0",
     "license": "LGPL-3",
     "depends": ["greenhub", "fleet", "account", "account_reports", "account_budget", "mail"],
     # Explicit installs only: the Green Hub server is shared by several tenants.

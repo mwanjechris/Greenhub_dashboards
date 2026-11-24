@@ -41,6 +41,26 @@ class GhKpiServiceCollections(models.AbstractModel):
             ids[cat].append(log.id)
         return amounts, ids
 
+    def _late_fee_settlements(self, logs):
+        """Odoo reconciliations that settled penalty (late-fee) invoices with these receipts' payments.
+
+        The app labels every instalment payment LEASE, so late fees cannot be told apart from the receipt.
+        Odoo can: each receipt has an Odoo payment with the same payment reference, and the part of it
+        reconciled with a penalty invoice is late fee. Amounts are gross (the rider's receivable is credited
+        the full receipt; the MTN charge is booked separately), so they share the receipts' basis.
+        Write-offs settling penalty invoices are not cash and are not included."""
+        Partial = self.env["account.partial.reconcile"].sudo()
+        refs = [r for r in logs.mapped("payment_reference") if r]
+        if not refs:
+            return Partial
+        payments = self.env["account.payment"].sudo().search([("payment_reference", "in", refs)])
+        penalty_moves = [m.id for m, _n in self.env["payment.schedule"].sudo()._read_group(
+            [("penalties_invoice_id", "!=", False)], ["penalties_invoice_id"], ["__count"])]
+        if not payments or not penalty_moves:
+            return Partial
+        return Partial.search([("credit_move_id", "in", payments.move_id.line_ids.ids),
+                               ("debit_move_id.move_id", "in", penalty_moves)])
+
     def _contracts_of_group(self, product_group_id, domain):
         contracts = self.env["rider.contract"].sudo().search(domain)
         if product_group_id:
@@ -100,7 +120,8 @@ class GhKpiServiceCollections(models.AbstractModel):
         # expected rate per risk category: trailing weekly snapshots, collected / due
         snaps = self.env["gh.contract.snapshot"].sudo().search([
             ("period_type", "=", "week"), ("is_active", "=", True), ("company_id", "=", self.env.company.id),
-            ("period_end", ">=", on - timedelta(weeks=config.rate_window_weeks)), ("period_end", "<=", on)])
+            ("period_end", ">=", on - timedelta(weeks=config.rate_window_weeks)), ("period_end", "<=", on),
+            ("source", "!=", "backfill")])  # risk categories need recorded arrears (see Portfolio ARREARS_RELIABLE)
         due_by, coll_by = defaultdict(float), defaultdict(float)
         for s in snaps:
             due_by[s.risk_category] += s.due_in_period
@@ -260,6 +281,13 @@ class GhKpiServiceCollections(models.AbstractModel):
             logs = self._logs(start, end, product_group_id)
             amounts, ids = self._by_category(logs)
             total = sum(amounts.values())
+            # late fees paid inside instalment receipts (the app labels them LEASE): from Odoo's reconciliations
+            instalment_ids = set(ids.get("lease", []) + ids.get("rental", []))
+            late_in_receipts = sum(self._late_fee_settlements(logs.filtered(lambda l: l.id in instalment_ids)).mapped("amount"))
+            late_drill = {"kind": "late_fees", "args": {"date_from": fields.Date.to_string(start),
+                                                        "date_to": fields.Date.to_string(end),
+                                                        "product_group_id": product_group_id or False,
+                                                        "label": _("Late fees paid (Odoo reconciliations)")}}
             contracts = self._contracts_of_group(product_group_id, [])
             due_lines = self._due(start, end, contracts, lease_only=True)
             due_lease = sum(due_lines.mapped("amount"))
@@ -274,12 +302,14 @@ class GhKpiServiceCollections(models.AbstractModel):
                                        if period != "custom" else end, f"category:{key}") if version else None
                 pro_rata = target * elapsed / month_days if target is not None and month_days else target
                 actual = amounts.get(key, 0.0)
-                if not actual and target is None and key == "other":
+                if not actual and target is None and key in ("other", "late_fee"):
                     continue
                 cats.append({"key": key, "label": label, "actual": conv(actual), "target": conv(target),
                              "pro_rata": conv(pro_rata), "achieved": self._pct(actual, target) if target else None,
                              "variance": conv(actual - pro_rata) if pro_rata is not None else None,
-                             "domain": [("id", "in", ids.get(key, []))]})
+                             "domain": [("id", "in", ids.get(key, []))],
+                             "of_which": {"label": _("of which late fees"), "amount": conv(late_in_receipts),
+                                          "drill": late_drill} if key == "lease" and late_in_receipts else None})
             total_target = sum(c["target"] for c in cats if c["target"] is not None) if any(
                 c["target"] is not None for c in cats) else None
             total_pro = sum(c["pro_rata"] for c in cats if c["pro_rata"] is not None) if total_target is not None else None
@@ -287,7 +317,9 @@ class GhKpiServiceCollections(models.AbstractModel):
                 "period": {"from": fields.Date.to_string(start), "to": fields.Date.to_string(end), "elapsed": elapsed,
                            "days": month_days, "key": period},
                 "total": conv(total), "count": len(logs), "domain": [("id", "in", logs.ids)],
-                "lease": conv(amounts.get("lease", 0.0)), "late_fees": conv(amounts.get("late_fee", 0.0)),
+                "lease": conv(amounts.get("lease", 0.0)),
+                "late_fees": conv(amounts.get("late_fee", 0.0) + late_in_receipts), "late_fees_in_lease": bool(late_in_receipts),
+                "late_drill": late_drill,
                 "deposits": conv(amounts.get("deposit", 0.0)),
                 "lease_due": conv(due_lease), "due_domain": [("id", "in", due_lines.ids)],
                 "progress": self._pct(amounts.get("lease", 0.0), due_lease),

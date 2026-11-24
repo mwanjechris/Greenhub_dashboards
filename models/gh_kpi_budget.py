@@ -43,7 +43,7 @@ class GhKpiServiceBudget(models.AbstractModel):
         return "down" if key in ("COS", "EXP", "OEXP", "ALLOC") else "up"
 
     @api.model
-    def get_budget_dashboard(self, version_id=None, period="ytd", through=False, budget_id=None):
+    def get_budget_dashboard(self, version_id=None, period="ytd", through=False, budget_id=None, revenue_basis="odoo"):
         self._check_access()
         on = self._today()
         config = self.env["gh.dashboard.config"]._get_config()
@@ -62,20 +62,25 @@ class GhKpiServiceBudget(models.AbstractModel):
         month_start = end.replace(day=1)
         ds = fields.Date.to_string
         vid = version.id if version else False
+        # 'odoo' (default) = exactly Odoo's P&L; 'excl_principal' = the optional view without lease principal
+        excl = revenue_basis == "excl_principal" and bool(config.principal_account_ids)
 
         def cell(key, line, date_from, date_to):
-            return {"kind": "pl_cell", "args": {"report_line_id": line["line_id"], "date_from": ds(date_from),
-                                                "date_to": ds(date_to), "label": line["name"]}}
+            args = {"report_line_id": line["line_id"], "date_from": ds(date_from), "date_to": ds(date_to),
+                    "label": line["name"]}
+            if line.get("excl_principal"):
+                args.update(exclude_account_ids=line["excl_principal"], label=_("%s (excl. principal)", line["name"]))
+            return {"kind": "pl_cell", "args": args}
 
         def pl_report(date_from, date_to, with_budget=True):
             return {"kind": "report", "args": {"report": "pl", "date_from": ds(date_from), "date_to": ds(date_to),
                                                "budget_id": budget.id if (with_budget and budget) else False}}
 
         def pl():
-            period_lines, report, _o = self._pl_read(start, end, budget or None)
+            period_lines, report, _o = self._pl_read(start, end, budget or None, excl)
             if not report:
                 return {"lines": [], "tiles": [], "report": False}
-            month_lines, _r, _o = self._pl_read(month_start, end, budget or None)
+            month_lines, _r, _o = self._pl_read(month_start, end, budget or None, excl)
             lines = []
             for key, line in sorted(period_lines.items(), key=lambda kv: kv[1]["sequence"]):
                 m = month_lines.get(key, {})
@@ -109,7 +114,7 @@ class GhKpiServiceBudget(models.AbstractModel):
                 m_start = m_end.replace(day=1)
                 if m_start > end:
                     break
-                lines, _r, _o = self._pl_read(m_start, min(m_end, end), budget or None)
+                lines, _r, _o = self._pl_read(m_start, min(m_end, end), budget or None, excl)
                 rev = lines.get("REV")
                 if not rev:
                     continue
@@ -209,7 +214,7 @@ class GhKpiServiceBudget(models.AbstractModel):
         def outlook():
             year_start, year_end = date(end.year, 1, 1), date(end.year, 12, 31)
             key = "EBITDA"
-            ytd, _r, _o = self._pl_read(year_start, end)
+            ytd, _r, _o = self._pl_read(year_start, end, None, excl)
             if key not in ytd:
                 key = "INC"
             actual = ytd.get(key, {}).get("actual")
@@ -217,11 +222,11 @@ class GhKpiServiceBudget(models.AbstractModel):
             rest_from = end + timedelta(days=1)
             fc = None
             if forecast and rest_from <= year_end:
-                rest, _r, _o = self._pl_read(rest_from, year_end, forecast)
+                rest, _r, _o = self._pl_read(rest_from, year_end, forecast, excl)
                 fc = rest.get(key, {}).get("budget")
             approved = None
             if budget:
-                full, _r, _o = self._pl_read(year_start, year_end, budget)
+                full, _r, _o = self._pl_read(year_start, year_end, budget, excl)
                 approved = full.get(key, {}).get("budget")
             return {"line": ytd.get(key, {}).get("name") or key, "ytd_from": ds(year_start), "ytd_to": ds(end),
                     "actual_ytd_drill": cell(key, ytd[key], year_start, end) if key in ytd else None,
@@ -270,6 +275,8 @@ class GhKpiServiceBudget(models.AbstractModel):
             if version else False,
             "period": {"key": period, "from": ds(start), "to": ds(end)},
             "through_options": [ds(d.replace(day=1)) for d in month_ends(date(on.year, 1, 1), on)] + [ds(on.replace(day=1))],
+            "revenue_basis": "excl_principal" if excl else "odoo",
+            "principal_accounts": [f"{a.code} {a.name}" for a in config.principal_account_ids],
             "pl": self._panel(pl),
             "revenue_by_month": self._panel(revenue_by_month),
             "operational": self._panel(operational),

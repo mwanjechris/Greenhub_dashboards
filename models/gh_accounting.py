@@ -47,6 +47,11 @@ class GhDashboardConfigAccounting(models.Model):
         "account.account", "gh_config_loan_rel", "config_id", "account_id",
         string="Lender loan accounts", domain="[('account_type', 'like', 'liability')]",
         help="Loan liability accounts. Debits posted to them in a period = principal repaid.")
+    principal_account_ids = fields.Many2many(
+        "account.account", "gh_config_principal_rel", "config_id", "account_id",
+        string="Lease principal accounts", domain="[('account_type', 'like', 'income')]",
+        help="Income accounts that carry lease principal. The Budget dashboard's 'Excl. principal' view takes them out "
+             "of Revenue and every P&L line built on it. The default view always matches Odoo's P&L.")
     loan_interest_account_ids = fields.Many2many(
         "account.account", "gh_config_loan_interest_rel", "config_id", "account_id",
         string="Loan interest & fee accounts", domain="[('account_type', 'like', 'expense')]",
@@ -169,6 +174,8 @@ class GhDashboardConfigAccounting(models.Model):
                 ("name", "ilike", "written off"), ("name", "ilike", "lease default")])
         if not self.loan_account_ids:
             self.loan_account_ids = Account.search([("account_type", "like", "liability"), ("name", "ilike", "loan")])
+        if not self.principal_account_ids:
+            self.principal_account_ids = Account.search([("account_type", "like", "income"), ("name", "ilike", "principal")])
 
 
 class GhKpiServiceAccounting(models.AbstractModel):
@@ -181,8 +188,54 @@ class GhKpiServiceAccounting(models.AbstractModel):
                 "budgets": [{"id": budget.id, "selected": True}] if budget else []}
         return report.with_company(self.env.company).get_options(prev)
 
-    def _pl_read(self, date_from, date_to, budget=None):
-        """{code: {"line_id", "name", "level", "actual", "budget", "dict_id", "actual_key"}} straight from Odoo's P&L."""
+    def _revenue_dependents(self, report):
+        """{line key: sign} for Revenue and every aggregation built on it (Gross Profit, Operating Income, EBITDA,
+        Net Profit ...), read from the report's own formulas."""
+        by_code = {l.code: l for l in report.line_ids if l.code}
+        rev = next((c for c in by_code if re.sub(r"^GH_", "", c) == "REV"), None)
+        if not rev:
+            return {}
+        signs = {rev: 1}
+        changed = True
+        while changed:
+            changed = False
+            for code, line in by_code.items():
+                if code in signs:
+                    continue
+                for expr in line.expression_ids.filtered(lambda e: e.label == "balance" and e.engine == "aggregation"):
+                    for dep, sign in list(signs.items()):
+                        m = re.search(r"(^|[^\w])([-+]?)\s*" + re.escape(dep) + r"\.balance", expr.formula or "")
+                        if m:
+                            signs[code] = sign * (-1 if m.group(2) == "-" else 1)
+                            changed = True
+                            break
+        return {re.sub(r"^GH_", "", c): s for c, s in signs.items()}
+
+    def _exclude_principal(self, out, report, date_from, date_to, budget=None):
+        """Take lease principal (settings: principal accounts) out of Revenue and the lines built on it."""
+        config = self.env["gh.dashboard.config"]._get_config()
+        accounts = config.principal_account_ids
+        if not accounts:
+            return out
+        principal = -(self._ledger_sum(accounts, date_from, date_to) or 0.0)  # income: credit balance
+        principal_budget = 0.0
+        if budget:
+            items = self.env["account.report.budget.item"].sudo().search([
+                ("budget_id", "=", budget.id), ("account_id", "in", accounts.ids),
+                ("date", ">=", date_from), ("date", "<=", date_to)])
+            principal_budget = sum(items.mapped("amount"))
+        for key, sign in self._revenue_dependents(report).items():
+            if key in out:
+                out[key]["actual"] -= sign * principal
+                if out[key]["budget"] is not None:
+                    out[key]["budget"] -= sign * principal_budget
+                out[key]["excl_principal"] = list(accounts.ids)
+        return out
+
+    def _pl_read(self, date_from, date_to, budget=None, exclude_principal=False):
+        """{code: {"line_id", "name", "level", "actual", "budget", "dict_id", "actual_key"}} straight from Odoo's P&L.
+
+        exclude_principal: the optional 'Excl. principal' view (default off = exactly Odoo's P&L)."""
         config = self.env["gh.dashboard.config"]._get_config()
         report = config._pl_report()
         if not report:
@@ -211,6 +264,8 @@ class GhKpiServiceAccounting(models.AbstractModel):
             out[key] = {"line_id": rline.id, "name": line["name"], "level": rline.hierarchy_level,
                         "sequence": rline.sequence, "actual": actual or 0.0,
                         "budget": budget_val if budget else None, "dict_id": line["id"], "actual_key": actual_key}
+        if exclude_principal:
+            self._exclude_principal(out, report, date_from, date_to, budget)
         return out, report, options
 
     # ------------------------------------------------------------ ledger sums on accounts picked in settings
