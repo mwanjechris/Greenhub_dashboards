@@ -279,7 +279,7 @@ class GhKpiServicePortfolio(models.AbstractModel):
         return {
             "as_of": fields.Date.to_string(on), "historic": historic,
             "as_of_options": [fields.Date.to_string(d) for d in reversed(recorded[-26:])],
-            "arrears_history_from": fields.Date.to_string(recorded[0]) if recorded else False,
+            "arrears_history_from": recorded[0].strftime("%d %b %Y") if recorded else False,
             "computed_at": fields.Datetime.to_string(fields.Datetime.now()), "company": self.env.company.name,
             "currency": self.env.company.currency_id.name,
             "product_groups": self._group_payload(self.env["gh.product.group"].sudo().search([])),

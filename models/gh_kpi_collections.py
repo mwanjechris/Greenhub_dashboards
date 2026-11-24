@@ -281,13 +281,18 @@ class GhKpiServiceCollections(models.AbstractModel):
             logs = self._logs(start, end, product_group_id)
             amounts, ids = self._by_category(logs)
             total = sum(amounts.values())
-            # late fees paid inside instalment receipts (the app labels them LEASE): from Odoo's reconciliations
-            instalment_ids = set(ids.get("lease", []) + ids.get("rental", []))
-            late_in_receipts = sum(self._late_fee_settlements(logs.filtered(lambda l: l.id in instalment_ids)).mapped("amount"))
-            late_drill = {"kind": "late_fees", "args": {"date_from": fields.Date.to_string(start),
-                                                        "date_to": fields.Date.to_string(end),
-                                                        "product_group_id": product_group_id or False,
-                                                        "label": _("Late fees paid (Odoo reconciliations)")}}
+            # late fees paid inside instalment receipts (the app labels them LEASE / RENTAL): from Odoo's
+            # reconciliations, per category so each "of which" line belongs to its own row
+            late_by_cat, late_drills = {}, {}
+            for cat in INSTALMENT_CATEGORIES:
+                cat_ids = set(ids.get(cat, []))
+                late_by_cat[cat] = sum(self._late_fee_settlements(logs.filtered(lambda l: l.id in cat_ids)).mapped("amount"))
+                late_drills[cat] = {"kind": "late_fees", "args": {
+                    "date_from": fields.Date.to_string(start), "date_to": fields.Date.to_string(end),
+                    "product_group_id": product_group_id or False, "categories": [cat],
+                    "label": _("Late fees paid in %s receipts (Odoo reconciliations)", cat)}}
+            late_in_receipts = late_by_cat.get("lease", 0.0)
+            late_drill = late_drills.get("lease")
             contracts = self._contracts_of_group(product_group_id, [])
             due_lines = self._due(start, end, contracts, lease_only=True)
             due_lease = sum(due_lines.mapped("amount"))
@@ -308,8 +313,8 @@ class GhKpiServiceCollections(models.AbstractModel):
                              "pro_rata": conv(pro_rata), "achieved": self._pct(actual, target) if target else None,
                              "variance": conv(actual - pro_rata) if pro_rata is not None else None,
                              "domain": [("id", "in", ids.get(key, []))],
-                             "of_which": {"label": _("of which late fees"), "amount": conv(late_in_receipts),
-                                          "drill": late_drill} if key == "lease" and late_in_receipts else None})
+                             "of_which": {"label": _("of which late fees"), "amount": conv(late_by_cat[key]),
+                                          "drill": late_drills[key]} if late_by_cat.get(key) else None})
             total_target = sum(c["target"] for c in cats if c["target"] is not None) if any(
                 c["target"] is not None for c in cats) else None
             total_pro = sum(c["pro_rata"] for c in cats if c["pro_rata"] is not None) if total_target is not None else None

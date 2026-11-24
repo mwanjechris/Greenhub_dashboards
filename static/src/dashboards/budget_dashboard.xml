@@ -88,7 +88,7 @@
             <span class="gh-rpt" t-on-click="() => this.go({kind: 'report', args: {report: 'pl', date_from: d.period.from, date_to: d.period.to, budget_id: d.budget ? d.budget.id : false}})">P&amp;L report ↗</span>
             <span class="gh-rpt" t-on-click="() => this.report('gl', d.period.from, d.period.to)">General Ledger ↗</span>
             <span class="gh-rpt" t-on-click="() => this.report('bs', d.period.from, d.period.to)">Balance Sheet ↗</span></span></div>
-        <div class="gh-pcap"><t t-esc="d.currency"/> · lines, signs and totals exactly as <b t-esc="d.pl.report"/> in Accounting › Reporting · variance = (actual − budget) ÷ |budget|</div>
+        <div class="gh-pcap"><t t-esc="d.currency"/> · <t t-if="d.revenue_basis === 'excl_principal'"><b>Excl. principal:</b> <b t-esc="d.pl.report"/> with <t t-esc="d.principal_accounts.join(', ')"/> taken out of Revenue and every line built on it (not Odoo's P&amp;L)</t><t t-else="">lines, signs and totals exactly as <b t-esc="d.pl.report"/> in Accounting › Reporting</t> · variance = (actual − budget) ÷ |budget|</div>
         <table class="t">
           <thead><tr><th>Line</th><th class="r">Month actual</th><th class="r">Month budget</th><th class="r">Period actual</th><th class="r">Period budget</th><th class="r">Variance</th><th class="r">Var %</th><th>Status</th></tr></thead>
           <tbody>

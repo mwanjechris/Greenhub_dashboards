@@ -34,10 +34,14 @@ class GhKpiServiceDrill(models.AbstractModel):
         return fields.Date.to_date(value) if value else None
 
     def _window_action(self, model, ids, name, views=None, context=None):
+        ids = list(ids)
         return {
             "type": "ir.actions.act_window", "name": name, "res_model": model,
             "views": views or [[False, "list"], [False, "form"]],
-            "domain": [("id", "in", list(ids))], "target": "current",
+            "domain": [("id", "in", ids)], "target": "current",
+            # load every record (up to 2,000) so list footer totals equal the figure clicked
+            # (Odoo totals only the loaded page in an ungrouped list)
+            "limit": min(max(len(ids), 80), 2000),
             "context": dict(context or {}, create=False),
         }
 
@@ -255,11 +259,12 @@ class GhKpiServiceDrill(models.AbstractModel):
                  if by_product.get(l.contract_id.product_product_id.id) else 0) == group_id))
         return self._window_action("payment.log", logs.ids, label or _("Receipts"))
 
-    def _drill_late_fees(self, date_from=None, date_to=None, product_group_id=None, label=None):
+    def _drill_late_fees(self, date_from=None, date_to=None, product_group_id=None, categories=None, label=None):
         """Odoo reconciliations of penalty invoices with the period's instalment receipts (sum = the late-fee figure)."""
         logs = self._logs(self._d(date_from), self._d(date_to), product_group_id or None)
         classify = self.env["gh.payment.category.rule"]._classifier()
-        logs = logs.filtered(lambda l: classify(l) in INSTALMENT_CATEGORIES)
+        wanted = set(categories or INSTALMENT_CATEGORIES)
+        logs = logs.filtered(lambda l: classify(l) in wanted)
         settlements = self._late_fee_settlements(logs)
         return self._window_action("account.partial.reconcile", settlements.ids, label or _("Late fees paid"),
                                    views=[[self._drill_view("Greenhub_dashboards.view_gh_late_fee_settlement_list"), "list"]])
