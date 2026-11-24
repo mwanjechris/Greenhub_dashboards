@@ -122,15 +122,34 @@ class GhKpiServiceBudget(models.AbstractModel):
         def operational():
             Target = self.env["gh.kpi.target"]
             rows = []
-            portfolio = self._portfolio_core(self.env["gh.history.service"]._live_contract_rows(on))
-            active = portfolio["active_contracts"]["value"]
+            # End-date KPIs (B07, B09) take the value at the END of the period shown (brief 5.4), not today's:
+            # live when the period runs to today, else the month-end contract snapshot.
+            point = end
+            snaps = None
+            if point < on:
+                snaps = self.env["gh.contract.snapshot"].sudo().search([
+                    ("period_type", "=", "month"), ("period_end", "=", point), ("is_active", "=", True),
+                    ("company_id", "=", self.env.company.id)])
+            if snaps is not None and snaps:
+                active = len(snaps)
+                active_drill = {"kind": "snapshots", "args": {"period_type": "month", "period_end": ds(point),
+                                                             "is_active": True, "label": _("Active contracts")}}
+            else:
+                portfolio = self._portfolio_core(self.env["gh.history.service"]._live_contract_rows(on))
+                active = portfolio["active_contracts"]["value"]
+                active_drill = {"kind": "contracts", "args": {"keys": ["is_active"], "label": _("Active contracts")}}
+                point = on
             rows.append({"code": "B07", "label": _("Active rider portfolio"), "basis": "end-date", "actual": active,
-                         "plan": Target._point_value(version, "B07", on), "direction": "up", "unit": "count",
-                         "drill": {"kind": "contracts", "args": {"keys": ["is_active"], "label": _("Active contracts")}},
-                         "plan_drill": {"kind": "targets", "args": {"version_id": vid, "metrics": ["B07"], "point_on": ds(on),
+                         "as_of": ds(point),
+                         "plan": Target._point_value(version, "B07", point), "direction": "up", "unit": "count",
+                         "drill": active_drill,
+                         "plan_drill": {"kind": "targets", "args": {"version_id": vid, "metrics": ["B07"], "point_on": ds(point),
                                                                     "label": _("Active rider portfolio plan")}}})
+            # first-time: exact, from contract start dates; returning: the Riders growth table's weekly count
+            # (a rider re-contracted within days never left, so contract dates would overstate returns)
+            first_ids, _contract_returning = self._onboarding_ids(start, end)
             growth = [g for g in self._growth_rows("week", None, 400, start, end)]
-            first = sum(g["first_time"] for g in growth)
+            first = len(first_ids)
             returning = sum(g["returning"] for g in growth)
             rows.append({"code": "B08", "label": _("New rider onboarding (first-time)"), "basis": "sum", "actual": first,
                          "plan": Target._value(version, "B08", start, end), "direction": "up", "unit": "count",
@@ -139,17 +158,25 @@ class GhKpiServiceBudget(models.AbstractModel):
                                                                         "label": _("First-time riders")}},
                          "plan_drill": {"kind": "targets", "args": {"version_id": vid, "metrics": ["B08"], "date_from": ds(start),
                                                                     "date_to": ds(end), "label": _("Onboarding plan")}}})
-            fleet = self._fleet(on, None)
-            per_group = {r["group_id"]: r for r in fleet["matrix"]["rows"]}
+            fleet = self._fleet(on, None) if point >= on else None
+            per_group = {r["group_id"]: r for r in fleet["matrix"]["rows"]} if fleet else {}
             for group in self.env["gh.product.group"].sudo().search([]):
-                cell = next((c for c in per_group.get(group.id, {}).get("cells", []) if c["category"] == "on_contract"), None)
+                if fleet:
+                    cell = next((c for c in per_group.get(group.id, {}).get("cells", []) if c["category"] == "on_contract"), None)
+                    deployed = cell["count"] if cell else 0
+                    deployed_drill = {"kind": "fleet_cell", "args": {"group_id": group.id, "category": "on_contract",
+                                                                    "label": _("On contract: %s", group.name)}}
+                else:  # bikes on an active contract at the period end (one bike per active contract)
+                    deployed = len(snaps.filtered(lambda s: s.product_group_id == group))
+                    deployed_drill = {"kind": "snapshots", "args": {"period_type": "month", "period_end": ds(point),
+                                                                   "is_active": True, "product_group_id": group.id,
+                                                                   "label": _("On contract: %s", group.name)}}
                 rows.append({"code": "B09", "label": _("Fleet deployment: %s", group.name), "basis": "end-date",
-                             "actual": cell["count"] if cell else 0,
-                             "plan": Target._point_value(version, "B09", on, f"group:{group.id}"), "direction": "up",
+                             "actual": deployed, "as_of": ds(point),
+                             "plan": Target._point_value(version, "B09", point, f"group:{group.id}"), "direction": "up",
                              "unit": "count",
-                             "drill": {"kind": "fleet_cell", "args": {"group_id": group.id, "category": "on_contract",
-                                                                      "label": _("On contract: %s", group.name)}},
-                             "plan_drill": {"kind": "targets", "args": {"version_id": vid, "metrics": ["B09"], "point_on": ds(on),
+                             "drill": deployed_drill,
+                             "plan_drill": {"kind": "targets", "args": {"version_id": vid, "metrics": ["B09"], "point_on": ds(point),
                                                                         "dim_keys": [f"group:{group.id}"],
                                                                         "label": _("Fleet deployment plan: %s", group.name)}}})
             collected = sum(l.amount for l in self._logs(start, end))
@@ -219,7 +246,8 @@ class GhKpiServiceBudget(models.AbstractModel):
                 for l in b.budget_line_ids:
                     label = " · ".join(l[f].display_name for f in plan_fields if f in l._fields and l[f]) or _("(no analytic)")
                     lines.append({"id": l.id, "label": label, "planned": l.budget_amount, "achieved": l.achieved_amount,
-                                  "theoretical": l.theoritical_amount, "pct": round(l.achieved_percentage, 1)
+                                  # Odoo stores achieved_percentage as a ratio (its widget shows x100)
+                                  "theoretical": l.theoritical_amount, "pct": round(100.0 * l.achieved_percentage, 1)
                                   if l.achieved_percentage is not None else None,
                                   "above": l.is_above_budget})
                 out.append({"id": b.id, "name": b.name, "state": b.state,

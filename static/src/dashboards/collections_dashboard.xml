@@ -66,7 +66,7 @@
         <div class="gh-score">
           <div class="gh-cl" style="flex:3 1 0"><div class="gh-cl-l"><t t-if="c.period.key === 'this_month'">This month</t><t t-else="">Period</t></div>
             <div class="gh-tiles" style="grid-template-columns:repeat(3,minmax(0,1fr))">
-              <button class="gh-tile" t-on-click="() => this.open('payment.log', c.domain, 'Receipts')"><span class="kc">C01</span>
+              <button class="gh-tile" t-on-click="() => this.receipts(['lease'], 'Lease receipts')"><span class="kc">C01</span>
                 <div class="gh-tile-l">Lease collections</div>
                 <div class="gh-tile-n"><t t-esc="moneyParts(c.lease).main"/><small t-esc="moneyParts(c.lease).suffix"/></div>
                 <div class="gh-tile-q">excl. late fees <span class="lnk" t-on-click.stop="() => this.receipts(['late_fee'], 'Late fees')" t-esc="fmtMoney(c.late_fees)"/> · deposits <span class="lnk" t-on-click.stop="() => this.receipts(['deposit'], 'Deposits')" t-esc="fmtMoney(c.deposits)"/></div></button>

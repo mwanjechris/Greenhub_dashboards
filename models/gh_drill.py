@@ -294,17 +294,9 @@ class GhKpiServiceDrill(models.AbstractModel):
         return self._drill_kpi_snapshots(["R06"], "week", period_end, label)
 
     def _drill_first_time_range(self, date_from=None, date_to=None, grain="week", product_group_id=None, label=None):
-        """Riders who appeared for the first time in any period ending inside [date_from, date_to]."""
+        """Riders whose first-ever contract started inside [date_from, date_to] (same rule as B08)."""
         date_from, date_to = self._d(date_from), self._d(date_to)
-        all_ends = self._period_ends(grain, None, date_to)
-        sets, _c = self._active_sets(grain, all_ends, product_group_id or None)
-        seen, prev, ids = set(), set(), set()
-        for i, end in enumerate(all_ends):
-            cur = sets.get(end, set())
-            if i and end >= date_from:
-                ids |= {r for r in cur - prev if r not in seen}
-            seen |= cur
-            prev = cur
+        ids, _returning = self._onboarding_ids(date_from, date_to, product_group_id or None)
         return self._window_action("rider", ids, label or _("First-time riders"))
 
     def _drill_fleet_cell(self, group_id=None, category=None, on=None, product_group_id=None, label=None):

@@ -54,8 +54,12 @@ export class BudgetDashboard extends GhDashboardBase {
         const sumRows = (rs) => ({ actual: rs.reduce((a, r) => a + (r.actual || 0), 0),
                                    plan: rs.every((r) => r.plan === null) ? null : rs.reduce((a, r) => a + (r.plan || 0), 0) });
         const fleet = sumRows(pick("B09"));
-        fleet.drill = { kind: "fleet_cell", args: { category: "on_contract", label: "Vehicles on contract" } };
-        fleet.plan_drill = { kind: "targets", args: { version_id: this.d.version ? this.d.version.id : false, metrics: ["B09"], point_on: this.d.as_of, label: "Fleet deployment plan" } };
+        // End-date value: bikes on contract at the period end (snapshot when the period ended before today)
+        const b07 = pick("B07")[0];
+        fleet.drill = b07 && b07.drill && b07.drill.kind === "snapshots"
+            ? { kind: "snapshots", args: { ...b07.drill.args, label: "Vehicles on contract" } }
+            : { kind: "fleet_cell", args: { category: "on_contract", label: "Vehicles on contract" } };
+        fleet.plan_drill = { kind: "targets", args: { version_id: this.d.version ? this.d.version.id : false, metrics: ["B09"], point_on: (b07 && b07.as_of) || this.d.as_of, label: "Fleet deployment plan" } };
         const out = [];
         for (const r of [pick("B07")[0], pick("B08")[0], { code: "B09", label: "Fleet deployed", actual: fleet.actual, plan: fleet.plan, direction: "up", unit: "count", drill: fleet.drill, plan_drill: fleet.plan_drill }, pick("B10")[0]]) {
             const v = r.variance || this.localVariance(r.actual, r.plan, r.direction);

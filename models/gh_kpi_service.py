@@ -381,6 +381,30 @@ class GhKpiService(models.AbstractModel):
                 contracts[snap["period_end"]][snap["rider_id"][0]] = snap["contract_id"][0]
         return sets, contracts
 
+    def _onboarding_ids(self, date_from, date_to, product_group_id=None):
+        """(first_time_rider_ids, returning_rider_ids) for contracts started in [date_from, date_to].
+
+        First-time = the rider's first-ever started contract falls in the window; returning = a contract
+        started in the window but the rider had an earlier one. Read from contract start dates, so it is exact
+        for any window (the weekly snapshots only start at history_start and cut weeks across month ends)."""
+        Contract = self.env["rider.contract"].sudo().with_context(active_test=False)
+        started = Contract.search([("state", "in", STARTED_STATES), ("contract_start_date", "!=", False)])
+        first_start = {}
+        for c in started:
+            rid = c.rider_id.id
+            if rid and (rid not in first_start or c.contract_start_date < first_start[rid]):
+                first_start[rid] = c.contract_start_date
+        in_window = started.filtered(lambda c: c.rider_id and date_from <= c.contract_start_date <= date_to)
+        if product_group_id:
+            by_product, _m, _g = self.env["gh.product.group"]._group_maps()
+            in_window = in_window.filtered(lambda c: by_product.get(c.product_product_id.id)
+                                           and by_product[c.product_product_id.id].id == product_group_id)
+        riders = set(in_window.mapped("rider_id").ids)
+        first = {r for r in riders if date_from <= first_start[r] <= date_to}
+        # an upgrade (new contract carrying upgraded_from) is the same rider staying on, not a return
+        returning = set(in_window.filtered(lambda c: not c.upgraded_from_contract_id).mapped("rider_id").ids) - first
+        return first, returning
+
     def _growth_rows(self, grain, product_group_id, limit, date_from=None, date_to=None):
         all_ends = self._period_ends(grain, None, date_to)
         if len(all_ends) < 2:
