@@ -107,7 +107,7 @@ class GhKpiServiceDrill(models.AbstractModel):
     def _drill_ledger(self, account_ids=(), date_from=None, date_to=None, label=None, side="balance"):
         """Posted journal items on ledger accounts picked in settings (default losses, lender loans)."""
         if not account_ids:
-            action = self.env["ir.actions.actions"]._for_xml_id("greenhub_dashboards.action_gh_dashboard_config")
+            action = self.env["ir.actions.actions"]._for_xml_id("Greenhub_dashboards.action_gh_dashboard_config")
             action["name"] = _("Settings: pick the ledger accounts for %s", label or _("this figure"))
             return action
         domain = [("account_id", "in", list(account_ids)), ("parent_state", "=", "posted"),
@@ -163,7 +163,7 @@ class GhKpiServiceDrill(models.AbstractModel):
         """The target lines a plan / budget figure was summed from."""
         version = self.env["gh.kpi.target.version"].sudo().browse(version_id) if version_id else self._target_version()
         if not version:
-            action = self.env["ir.actions.actions"]._for_xml_id("greenhub_dashboards.action_gh_kpi_target_version")
+            action = self.env["ir.actions.actions"]._for_xml_id("Greenhub_dashboards.action_gh_kpi_target_version")
             action["name"] = _("No approved target version yet")
             return action
         domain = [("version_id", "=", version.id), ("metric_code", "in", list(metrics))]
@@ -181,7 +181,7 @@ class GhKpiServiceDrill(models.AbstractModel):
         targets = self.env["gh.kpi.target"].search(domain)
         return self._window_action("gh.kpi.target", targets.ids,
                                    _("%(label)s · %(version)s", label=label or _("Targets"), version=version.name),
-                                   views=[[self._drill_view("greenhub_dashboards.view_gh_kpi_target_drill_list"), "list"]])
+                                   views=[[self._drill_view("Greenhub_dashboards.view_gh_kpi_target_drill_list"), "list"]])
 
     # ------------------------------------------------------------------ snapshots
     def _drill_snapshots(self, period_type="week", period_end=None, product_group_id=None, is_active=None,
@@ -204,7 +204,7 @@ class GhKpiServiceDrill(models.AbstractModel):
         snaps = self.env["gh.contract.snapshot"].search(domain)
         name = _("%(label)s · %(end)s", label=label or _("Contract snapshot"), end=self._d(period_end).strftime("%d %b %Y"))
         return self._window_action("gh.contract.snapshot", snaps.ids, name,
-                                   views=[[self._drill_view("greenhub_dashboards.view_gh_contract_snapshot_drill_list"), "list"],
+                                   views=[[self._drill_view("Greenhub_dashboards.view_gh_contract_snapshot_drill_list"), "list"],
                                           [False, "form"]])
 
     def _drill_kpi_snapshots(self, metric_codes=(), period_type="week", period_end=None, label=None):

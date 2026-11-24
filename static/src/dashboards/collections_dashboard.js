@@ -114,7 +114,7 @@ export class CollectionsDashboard extends GhDashboardBase {
     }
 
     goPortfolio() {
-        this.action.doAction("greenhub_dashboards.action_gh_portfolio_dashboard");
+        this.action.doAction("Greenhub_dashboards.action_gh_portfolio_dashboard");
     }
 }
 

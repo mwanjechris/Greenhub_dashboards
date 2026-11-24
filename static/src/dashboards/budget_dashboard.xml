@@ -148,7 +148,7 @@
         </div>
         <div class="gh-panel">
           <div class="gh-ptitle"><h3 class="gh-h3">Budgets &amp; targets</h3>
-            <a href="#" t-if="d.is_manager" style="font:500 12px var(--gh-sans);color:var(--gh-blue-step)" t-on-click.prevent="() => this.openAction('greenhub_dashboards.action_gh_target_import_wizard')">Import targets .xlsx →</a></div>
+            <a href="#" t-if="d.is_manager" style="font:500 12px var(--gh-sans);color:var(--gh-blue-step)" t-on-click.prevent="() => this.openAction('Greenhub_dashboards.action_gh_target_import_wizard')">Import targets .xlsx →</a></div>
           <div class="gh-pcap">P&amp;L budgets are Odoo report budgets, kept by finance in Accounting › Reporting › Profit and Loss. Operational targets (riders, fleet, collections) are kept here</div>
           <table class="t">
             <thead><tr><th>P&amp;L budget (Odoo)</th><th class="r">Lines</th></tr></thead>

@@ -272,5 +272,5 @@ class GhKpiServicePortfolio(models.AbstractModel):
             "recovery": self._panel(lambda: {"rows": self._recovery(on)}),
             "trends": self._panel(self._portfolio_trends, grain, date_from, on, product_group_id),
             "checks": self._portfolio_checks(core, riders) if core.get("ok") else [],
-            "is_manager": self.env.user.has_group("greenhub_dashboards.group_gh_dashboard_manager"),
+            "is_manager": self.env.user.has_group("Greenhub_dashboards.group_gh_dashboard_manager"),
         }

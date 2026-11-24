@@ -460,7 +460,7 @@ class GhBackfillWizard(models.TransientModel):
 
     def action_run(self):
         self.ensure_one()
-        if not self.env.user.has_group("greenhub_dashboards.group_gh_dashboard_manager"):
+        if not self.env.user.has_group("Greenhub_dashboards.group_gh_dashboard_manager"):
             raise UserError(_("Only a Dashboard Manager can run the backfill."))
         types = [t for t, on in (("week", self.weekly), ("month", self.monthly)) if on]
         written = self.env["gh.history.service"].backfill(self.date_from, self.date_to, types, self.force)

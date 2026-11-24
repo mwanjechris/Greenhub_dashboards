@@ -31,10 +31,10 @@ class TestDashboardsUi(HttpCase):
         self.browser_js(f"/odoo/action-{action.id}", RENDER_JS, login="admin", timeout=120)
 
     def test_portfolio_renders(self):
-        self._open("greenhub_dashboards.action_gh_portfolio_dashboard")
+        self._open("Greenhub_dashboards.action_gh_portfolio_dashboard")
 
     def test_collections_renders(self):
-        self._open("greenhub_dashboards.action_gh_collections_dashboard")
+        self._open("Greenhub_dashboards.action_gh_collections_dashboard")
 
     def test_budget_renders(self):
-        self._open("greenhub_dashboards.action_gh_budget_dashboard")
+        self._open("Greenhub_dashboards.action_gh_budget_dashboard")

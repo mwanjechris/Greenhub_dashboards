@@ -30,7 +30,7 @@ class GhKpiService(models.AbstractModel):
 
     # ------------------------------------------------------------------ helpers
     def _check_access(self):
-        if not self.env.user.has_group("greenhub_dashboards.group_gh_dashboard_user"):
+        if not self.env.user.has_group("Greenhub_dashboards.group_gh_dashboard_user"):
             raise AccessError(_("You need the Green Hub Dashboard User group to open this dashboard."))
 
     def _today(self):
@@ -579,7 +579,7 @@ class GhKpiService(models.AbstractModel):
             "history": self._panel(lambda: self._history(["R01", "R05", "R06"], grain, 26 if grain == "week" else 12)),
             "trends": self._panel(self._riders_trends, on, product_group_id, grain, range_key),
             "checks": self._riders_checks(core, fleet),
-            "is_manager": self.env.user.has_group("greenhub_dashboards.group_gh_dashboard_manager"),
+            "is_manager": self.env.user.has_group("Greenhub_dashboards.group_gh_dashboard_manager"),
         }
 
     @api.model

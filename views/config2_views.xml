@@ -44,11 +44,11 @@
                         <field name="pl_report_id" options="{'no_create': True}"/>
                         <button name="action_create_pl_variant" type="object" class="btn-secondary" colspan="2"
                                 string="Create / refresh the GreenHub P&amp;L (EBITDA) variant in Accounting"
-                                groups="greenhub_dashboards.group_gh_dashboard_manager"/>
+                                groups="Greenhub_dashboards.group_gh_dashboard_manager"/>
                         <field name="ebitda_addback_account_ids" widget="many2many_tags" options="{'no_create': True}"/>
                         <button name="action_suggest_addback_accounts" type="object" class="btn-link" colspan="2"
                                 string="Suggest: depreciation / amortisation accounts in cost of revenue or expenses"
-                                groups="greenhub_dashboards.group_gh_dashboard_manager"/>
+                                groups="Greenhub_dashboards.group_gh_dashboard_manager"/>
                         <field name="budget_id" options="{'no_create': True}"/>
                         <field name="forecast_budget_id" options="{'no_create': True}"/>
                     </group>
@@ -58,7 +58,7 @@
                         <field name="loan_interest_account_ids" widget="many2many_tags" options="{'no_create': True}"/>
                         <button name="action_suggest_ledgers" type="object" class="btn-link" colspan="2"
                                 string="Suggest: bad-debt write-off and loan accounts by name"
-                                groups="greenhub_dashboards.group_gh_dashboard_manager"/>
+                                groups="Greenhub_dashboards.group_gh_dashboard_manager"/>
                     </group>
                 </group>
             </xpath>
@@ -171,7 +171,7 @@
             <form>
                 <header>
                     <button name="action_approve" type="object" string="Approve and lock" class="btn-primary"
-                            invisible="state != 'draft'" groups="greenhub_dashboards.group_gh_dashboard_manager"
+                            invisible="state != 'draft'" groups="Greenhub_dashboards.group_gh_dashboard_manager"
                             confirm="An approved version can no longer be edited. Continue?"/>
                     <button name="%(action_gh_target_import_wizard)d" type="action" string="Import .xlsx"
                             invisible="state != 'draft'" context="{'default_version_id': id}"/>

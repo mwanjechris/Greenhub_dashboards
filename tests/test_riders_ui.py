@@ -11,7 +11,7 @@ class TestRidersDashboardUi(HttpCase):
         rider = self.env["rider"].create({"first_name": "Ui", "last_name": "Rider", "gender": "female"})
         contract = self.env["rider.contract"].create({"rider_id": rider.id, "product_product_id": product.id})
         contract.write({"state": "running"})
-        action = self.env.ref("greenhub_dashboards.action_gh_riders_dashboard")
+        action = self.env.ref("Greenhub_dashboards.action_gh_riders_dashboard")
         code = """
             const wait = async (test, what) => {
                 for (let i = 0; i < 100; i++) {

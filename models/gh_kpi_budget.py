@@ -247,5 +247,5 @@ class GhKpiServiceBudget(models.AbstractModel):
             "operational": self._panel(operational),
             "outlook": self._panel(outlook),
             "analytic_budgets": self._panel(analytic_budgets),
-            "is_manager": self.env.user.has_group("greenhub_dashboards.group_gh_dashboard_manager"),
+            "is_manager": self.env.user.has_group("Greenhub_dashboards.group_gh_dashboard_manager"),
         }

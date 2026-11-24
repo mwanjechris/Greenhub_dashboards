@@ -54,7 +54,7 @@ class GhKpiTargetVersion(models.Model):
         return super().unlink()
 
     def action_approve(self):
-        if not self.env.user.has_group("greenhub_dashboards.group_gh_dashboard_manager"):
+        if not self.env.user.has_group("Greenhub_dashboards.group_gh_dashboard_manager"):
             raise UserError(_("Only a Dashboard Manager can approve a version."))
         for version in self.filtered(lambda v: v.state == "draft"):
             super(GhKpiTargetVersion, version).write({
